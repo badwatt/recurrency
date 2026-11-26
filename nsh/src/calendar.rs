@@ -275,38 +275,44 @@ fn content(
                             .mt(px(16.0))
                             .px(px(16.0))
                             .pb(px(16.0))
-                            .grid()
-                            .grid_template_columns(SharedString::from("repeat(7, minmax(0, 1fr))"))
-                            .bg(move || theme().border)
-                            .gap(px(1.0))
-                            .children({
-                                let labels: [&'static str; 7] =
-                                    if crate::format::week_starts_sunday() {
-                                        ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-                                    } else {
-                                        ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-                                    };
-                                labels.into_iter().map(weekday_header).collect::<Vec<_>>()
-                            })
-                            .child(each(
-                                cells,
-                                |(index, _)| *index,
-                                move |cell, _| {
-                                    let (_, day) = cell.get();
-                                    day_cell(
-                                        day,
-                                        data,
-                                        year,
-                                        month,
-                                        desktop_currency.clone(),
-                                        today,
-                                        day_modal,
-                                        desktop_server.clone(),
-                                        desktop_token.clone(),
-                                        subscriptions,
-                                    )
-                                },
-                            )),
+                            .child(
+                                view()
+                                    .w_full()
+                                    .grid()
+                                    .grid_template_columns(SharedString::from(
+                                        "repeat(7, minmax(0, 1fr))",
+                                    ))
+                                    .bg(move || theme().border)
+                                    .gap(px(1.0))
+                                    .children({
+                                        let labels: [&'static str; 7] =
+                                            if crate::format::week_starts_sunday() {
+                                                ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+                                            } else {
+                                                ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+                                            };
+                                        labels.into_iter().map(weekday_header).collect::<Vec<_>>()
+                                    })
+                                    .child(each(
+                                        cells,
+                                        |(index, _)| *index,
+                                        move |cell, _| {
+                                            let (_, day) = cell.get();
+                                            day_cell(
+                                                day,
+                                                data,
+                                                year,
+                                                month,
+                                                desktop_currency.clone(),
+                                                today,
+                                                day_modal,
+                                                desktop_server.clone(),
+                                                desktop_token.clone(),
+                                                subscriptions,
+                                            )
+                                        },
+                                    )),
+                            ),
                     )
                     .into_element()
             }),

@@ -10,6 +10,7 @@ use uuid::Uuid;
 use crate::api::{self, DebtsData};
 use crate::auth::AuthSession;
 use crate::components::button::{ButtonProps, button as shared_button};
+use crate::components::charge_days::charge_days;
 use crate::components::confirm::{ConfirmProps, confirm_row};
 use crate::components::empty_state::empty_state;
 use crate::components::filter_menu::filter_menu;
@@ -1039,7 +1040,21 @@ fn form(
                 .child(
                     when(
                         move || debt_type.get() == "automatic",
-                        move || debt_charge_days(payment_days),
+                        move || {
+                            view()
+                                .w_full()
+                                .flex_col()
+                                .gap(px(6.0))
+                                .child(charge_days("Charge days", payment_days))
+                                .child(
+                                    text(
+                                        "This also creates a monthly subscription for the payment.",
+                                    )
+                                    .text_size(px(11.0))
+                                    .text_color(move || theme().muted_foreground),
+                                )
+                                .into_element()
+                        },
                     )
                     .otherwise(|| view().h(px(0.0)).into_element()),
                 )
@@ -1161,124 +1176,6 @@ fn form(
                 .into_element(),
         ),
     )
-}
-
-fn debt_charge_days(payment_days: Signal<Vec<u8>>) -> AnyElement {
-    let selected = payment_days.get();
-    let mut grid = Vec::with_capacity(32);
-    for day in 1..=31u8 {
-        let active = selected.contains(&day);
-        grid.push(
-            button()
-                .cursor_pointer()
-                .h(px(28.0))
-                .w(px(28.0))
-                .items_center()
-                .justify_center()
-                .rounded(px(6.0))
-                .bg(move || {
-                    if active {
-                        theme().primary
-                    } else {
-                        theme().card
-                    }
-                })
-                .border(px(1.0))
-                .border_color(move || {
-                    if active {
-                        theme().primary
-                    } else {
-                        theme().border
-                    }
-                })
-                .on_press(move || {
-                    let mut days = payment_days.get();
-                    if days.contains(&day) {
-                        days.retain(|value| *value != day);
-                    } else {
-                        days.push(day);
-                    }
-                    days.sort_unstable();
-                    payment_days.set(days);
-                })
-                .child(
-                    text(day.to_string())
-                        .text_size(px(12.0))
-                        .text_color(move || {
-                            if active {
-                                theme().primary_foreground
-                            } else {
-                                theme().foreground
-                            }
-                        }),
-                )
-                .into_element(),
-        );
-    }
-    grid.push(
-        button()
-            .cursor_pointer()
-            .h(px(28.0))
-            .px(px(8.0))
-            .items_center()
-            .justify_center()
-            .rounded(px(6.0))
-            .bg(move || {
-                if payment_days.get().contains(&0) {
-                    theme().primary
-                } else {
-                    theme().card
-                }
-            })
-            .border(px(1.0))
-            .border_color(move || theme().border)
-            .on_press(move || {
-                let mut days = payment_days.get();
-                if days.contains(&0) {
-                    days.retain(|value| *value != 0);
-                } else {
-                    days.retain(|value| *value < 29);
-                    days.push(0);
-                }
-                days.sort_unstable();
-                payment_days.set(days);
-            })
-            .child(
-                text("Last day")
-                    .text_size(px(11.0))
-                    .text_color(move || theme().foreground),
-            )
-            .into_element(),
-    );
-    view()
-        .w_full()
-        .flex_col()
-        .gap(px(6.0))
-        .child(
-            text("Charge days")
-                .text_size(px(14.0))
-                .font_weight(FontWeight::MEDIUM)
-                .text_color(move || theme().foreground),
-        )
-        .child(
-            view()
-                .w_full()
-                .flex_row()
-                .flex_wrap()
-                .gap(px(4.0))
-                .children(grid),
-        )
-        .child(
-            text("Each selected day is a separate payment. Days 29-31 can use \"Last day\".")
-                .text_size(px(11.0))
-                .text_color(move || theme().muted_foreground),
-        )
-        .child(
-            text("This also creates a monthly subscription for the payment.")
-                .text_size(px(11.0))
-                .text_color(move || theme().muted_foreground),
-        )
-        .into_element()
 }
 
 fn toolbar(
@@ -2010,5 +1907,11 @@ mod tests {
         assert_eq!(value["payment_days"][0], 22);
         assert_eq!(value["notes"], "Loan paperwork");
         assert_eq!(value["logo_url"], "https://example.test/logo.png");
+    }
+
+    #[test]
+    fn automatic_debts_reuse_the_shared_charge_days() {
+        let source = include_str!("debts.rs");
+        assert!(source.contains("charge_days(\"Charge days\""));
     }
 }

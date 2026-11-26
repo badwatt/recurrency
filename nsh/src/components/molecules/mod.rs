@@ -1,6 +1,7 @@
 //! Molecules: atoms composed into one interaction.
 
 pub mod card;
+pub mod charge_days;
 pub mod compact_select;
 pub mod converted_amount;
 pub mod date_picker;

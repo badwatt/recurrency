@@ -14,6 +14,7 @@ use crate::components::badge::{BadgeProps, BadgeTone, badge};
 use crate::components::button::{
     ButtonAlign, ButtonProps, ButtonSize, ButtonVariant, button as shared_button,
 };
+use crate::components::charge_days::charge_days;
 use crate::components::confirm::{ConfirmProps, confirm_row};
 use crate::components::converted_amount::converted_amount;
 use crate::components::empty_state::empty_state;
@@ -752,13 +753,12 @@ fn form(
                         .w_full()
                         .flex_row()
                         .gap(px(12.0))
-                        .child(ui::row_item(ui::required_numeric_field("Amount", amount, "9.99")))
+                        .child(ui::row_item(ui::required_numeric_field(
+                            "Amount", amount, "9.99",
+                        )))
                         .child(
-                            view()
-                                .flex_grow(1.6)
-                                .basis(px(0.0))
-                                .min_w(px(0.0))
-                                .child(string_select(StringSelectProps::new(
+                            view().flex_grow(1.6).basis(px(0.0)).min_w(px(0.0)).child(
+                                string_select(StringSelectProps::new(
                                     "Currency *",
                                     currency,
                                     crate::currencies::CURRENCIES
@@ -767,138 +767,205 @@ fn form(
                                             ((*code).to_string(), (*label).to_string())
                                         })
                                         .collect(),
-                                ))),
+                                )),
+                            ),
                         ),
                 )
                 .child(
                     view()
                         .w_full()
                         .mt(px(-2.0))
-                        .min_h(px(315.0))
-                        .rounded(px(10.0))
+                        .rounded(px(12.0))
                         .border(px(1.0))
-                        .border_color(move || theme().border)
-                        .bg(move || theme().muted.opacity(0.15))
-                        .p(px(14.0))
-                        .gap(px(0.0))
-                        .child(
-                            text("Billing schedule *")
-                                .text_size(px(14.0))
-                                .line_height(px(20.0))
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_color(move || theme().foreground),
-                        )
+                        .border_color(move || theme().border.opacity(0.7))
+                        .bg(move || theme().card)
+                        .p(px(20.0))
+                        .gap(px(18.0))
                         .child(
                             view()
-                                .flex_col()
-                                .gap(px(0.0))
+                                .w_full()
+                                .flex_row()
+                                .flex_wrap()
+                                .items_center()
+                                .gap(px(14.0))
                                 .child(
-                                    text(move || {
-                                        let interval_value = interval.get();
-                                        let unit_value = unit.get();
-                                        let today = Local::now().date_naive();
-                                        let selected = days.get();
-                                        if unit_value == "month" && interval_value == "1" {
-                                            let mut values = selected.clone();
-                                            if values.is_empty() {
-                                                values.push(today.day() as u8);
-                                            }
-                                            values.sort_unstable();
-                                            values.dedup();
-                                            if values.len() == 1 {
-                                                format!(
-                                                    "Charges monthly on day {}.",
-                                                    values[0]
-                                                )
-                                            } else {
-                                                let list = values
-                                                    .iter()
-                                                    .map(u8::to_string)
-                                                    .collect::<Vec<_>>()
-                                                    .join(", ");
-                                                format!("Charges monthly on days {list}.")
-                                            }
-                                        } else {
-                                            format!(
-                                                "Charges every {interval_value} {unit_value}."
-                                            )
-                                        }
-                                    })
-                                    .text_size(px(12.0))
-                                    .line_height(px(16.0))
-                                    .text_color(move || theme().muted_foreground),
+                                    view()
+                                        .h(px(42.0))
+                                        .w(px(42.0))
+                                        .items_center()
+                                        .justify_center()
+                                        .rounded(px(11.0))
+                                        .bg(move || theme().primary.opacity(0.12))
+                                        .child(
+                                            image(asset!("icons/calendar.svg"))
+                                                .size(px(20.0))
+                                                .tint_color(move || theme().primary),
+                                        ),
                                 )
                                 .child(
-                                    text(move || {
-                                        let first = NaiveDate::parse_from_str(
-                                            start_date.get().trim(),
-                                            "%Y-%m-%d",
+                                    view()
+                                        .flex_grow(1.0)
+                                        .basis(px(220.0))
+                                        .min_w(px(0.0))
+                                        .flex_col()
+                                        .gap(px(3.0))
+                                        .child(
+                                            text("Billing schedule *")
+                                                .text_size(px(15.0))
+                                                .line_height(px(22.0))
+                                                .font_weight(FontWeight::SEMIBOLD)
+                                                .text_color(move || theme().foreground),
                                         )
-                                        .unwrap_or_else(|_| Local::now().date_naive());
-                                        format!(
-                                            "First charge: {}",
-                                            crate::format::format_date(first)
+                                        .child(
+                                            text(move || {
+                                                let interval_value = interval.get();
+                                                let unit_value = unit.get();
+                                                let today = Local::now().date_naive();
+                                                let selected = days.get();
+                                                if unit_value == "month" && interval_value == "1" {
+                                                    let mut values = selected.clone();
+                                                    if values.is_empty() {
+                                                        values.push(today.day() as u8);
+                                                    }
+                                                    values.sort_unstable();
+                                                    values.dedup();
+                                                    if values.len() == 1 {
+                                                        format!(
+                                                            "Charges monthly on day {}.",
+                                                            values[0]
+                                                        )
+                                                    } else {
+                                                        let list = values
+                                                            .iter()
+                                                            .map(u8::to_string)
+                                                            .collect::<Vec<_>>()
+                                                            .join(", ");
+                                                        format!("Charges monthly on days {list}.")
+                                                    }
+                                                } else {
+                                                    format!(
+                                                        "Charges every {interval_value} {unit_value}."
+                                                    )
+                                                }
+                                            })
+                                            .text_size(px(12.0))
+                                            .line_height(px(18.0))
+                                            .text_color(move || theme().muted_foreground),
+                                        ),
+                                )
+                                .child(
+                                    view()
+                                        .flex_row()
+                                        .items_center()
+                                        .gap(px(6.0))
+                                        .px(px(10.0))
+                                        .py(px(6.0))
+                                        .rounded(px(999.0))
+                                        .bg(move || theme().muted.opacity(0.5))
+                                        .child(
+                                            image(asset!("icons/clock.svg"))
+                                                .size(px(12.0))
+                                                .tint_color(move || theme().muted_foreground),
                                         )
-                                    })
-                                    .text_size(px(11.0))
-                                    .line_height(px(16.0))
-                                    .text_color(move || theme().muted_foreground),
+                                        .child(
+                                            text(move || {
+                                                let first = NaiveDate::parse_from_str(
+                                                    start_date.get().trim(),
+                                                    "%Y-%m-%d",
+                                                )
+                                                .unwrap_or_else(|_| Local::now().date_naive());
+                                                format!(
+                                                    "First charge · {}",
+                                                    crate::format::format_date(first)
+                                                )
+                                            })
+                                            .text_size(px(11.0))
+                                            .font_weight(FontWeight::MEDIUM)
+                                            .text_color(move || theme().muted_foreground),
+                                        ),
                                 ),
                         )
                         .child(
                             view()
                                 .w_full()
-                                .flex_row()
-                                .items_center()
+                                .flex_col()
                                 .gap(px(8.0))
-                                .mt(px(1.0))
                                 .child(
-                                    text("Every")
-                                        .text_size(px(14.0))
-                                        .line_height(px(20.0))
-                                        .text_color(move || theme().foreground),
+                                    text("REPEAT EVERY")
+                                        .text_size(px(10.0))
+                                        .letter_spacing(px(0.9))
+                                        .font_weight(FontWeight::SEMIBOLD)
+                                        .text_color(move || theme().muted_foreground),
                                 )
                                 .child(
-                                    view().w(px(64.0)).child(
-                                        input()
-                                            .value(interval)
-                                            .on_change(move |value: &str| {
-                                                let clean =
-                                                    crate::components::input::sanitize_integer(value);
-                                                if clean != value {
-                                                    interval.set(value.to_string());
-                                                    let target = interval;
-                                                    spawn(async move { target.set(clean) });
-                                                } else {
-                                                    interval.set(clean);
-                                                }
-                                            })
-                                            .auto_fill(AutoFill::Off)
-                                            .h(px(36.0))
-                                            .w_full()
-                                            .px(px(8.0))
-                                            .rounded(px(6.0))
-                                            .border(px(1.0))
-                                            .border_color(move || theme().border)
-                                            .bg(move || theme().background)
-                                            .text_size(px(14.0))
-                                            .text_color(move || theme().foreground),
-                                    ),
-                                )
-                                .child(
-                                    view().w(px(140.0)).h(px(36.0)).child(string_select(
-                                        StringSelectProps::new(
-                                            "",
-                                            unit,
-                                            vec![
-                                                ("day".to_string(), "day".to_string()),
-                                                ("week".to_string(), "week".to_string()),
-                                                ("month".to_string(), "month".to_string()),
-                                                ("year".to_string(), "year".to_string()),
-                                            ],
+                                    view()
+                                        .w_full()
+                                        .flex_row()
+                                        .flex_wrap()
+                                        .gap(px(12.0))
+                                        .child(
+                                            view()
+                                                .w(px(92.0))
+                                                .flex_col()
+                                                .gap(px(4.0))
+                                                .child(
+                                                    text("Interval")
+                                                        .text_size(px(11.0))
+                                                        .text_color(move || theme().muted_foreground),
+                                                )
+                                                .child(
+                                                    input()
+                                                        .value(interval)
+                                                        .on_change(move |value: &str| {
+                                                            let clean = crate::components::input::sanitize_integer(
+                                                                value,
+                                                            );
+                                                            if clean != value {
+                                                                interval.set(value.to_string());
+                                                                let target = interval;
+                                                                spawn(async move { target.set(clean) });
+                                                            } else {
+                                                                interval.set(clean);
+                                                            }
+                                                        })
+                                                        .auto_fill(AutoFill::Off)
+                                                        .h(px(40.0))
+                                                        .w_full()
+                                                        .px(px(12.0))
+                                                        .rounded(px(8.0))
+                                                        .border(px(1.0))
+                                                        .border_color(move || theme().border)
+                                                        .bg(move || theme().background)
+                                                        .text_size(px(14.0))
+                                                        .text_color(move || theme().foreground),
+                                                ),
                                         )
-                                        .show_label(false),
-                                    )),
+                                        .child(
+                                            view()
+                                                .w(px(190.0))
+                                                .flex_col()
+                                                .gap(px(4.0))
+                                                .child(
+                                                    text("Unit")
+                                                        .text_size(px(11.0))
+                                                        .text_color(move || theme().muted_foreground),
+                                                )
+                                                .child(
+                                                    view().w_full().h(px(40.0)).child(string_select(
+                                                        StringSelectProps::new(
+                                                            "",
+                                                            unit,
+                                                            vec![
+                                                                ("day".to_string(), "day".to_string()),
+                                                                ("week".to_string(), "week".to_string()),
+                                                                ("month".to_string(), "month".to_string()),
+                                                                ("year".to_string(), "year".to_string()),
+                                                            ],
+                                                        )
+                                                        .show_label(false),
+                                                    )),
+                                                ),
+                                        ),
                                 ),
                         )
                         .child(
@@ -912,64 +979,35 @@ fn form(
                                     move || weekday_picker(weekdays).into_element(),
                                 )
                                 .otherwise(move || {
-                                    view()
-                                        .w_full()
-                                        .flex_col()
-                                        .gap(px(6.0))
-                                        .child(
+                                    when(
+                                        move || unit.get() == "day",
+                                        move || {
                                             view()
                                                 .w_full()
                                                 .flex_row()
                                                 .items_center()
-                                                .justify_between()
+                                                .gap(px(8.0))
+                                                .p(px(12.0))
+                                                .rounded(px(8.0))
+                                                .bg(move || theme().primary.opacity(0.07))
+                                                .border(px(1.0))
+                                                .border_color(move || theme().primary.opacity(0.16))
                                                 .child(
-                                                    text("Charge on these days")
-                                                    .text_size(px(12.0))
-                                                    .font_weight(FontWeight::MEDIUM)
-                                                    .text_color(move || theme().muted_foreground),
-                                            )
-                                            .child(
-                                                view()
-                                                    .flex_row()
-                                                    .items_center()
-                                                    .gap(px(8.0))
-                                                    .child(
-                                                        button()
-                                                            .cursor_pointer()
-                                                            .h(px(24.0))
-                                                            .px(px(6.0))
-                                                            .rounded(px(4.0))
-                                                            .on_press(move || {
-                                                                days.set((1u8..=31).collect())
-                                                            })
-                                                            .child(
-                                                                text("Select all")
-                                                                    .text_size(px(11.0))
-                                                                    .text_color(move || theme().primary),
-                                                            ),
-                                                    )
-                                                    .child(
-                                                        button()
-                                                            .cursor_pointer()
-                                                            .h(px(24.0))
-                                                            .px(px(6.0))
-                                                            .rounded(px(4.0))
-                                                            .on_press(move || days.set(Vec::new()))
-                                                            .child(
-                                                                text("Clear")
-                                                                    .text_size(px(11.0))
-                                                                    .text_color(move || theme().primary),
-                                                            ),
-                                                    ),
-                                            ),
+                                                    image(asset!("icons/info.svg"))
+                                                        .size(px(14.0))
+                                                        .tint_color(move || theme().primary),
+                                                )
+                                                .child(
+                                                    text("Charges every selected number of days from the activation date.")
+                                                        .text_size(px(12.0))
+                                                        .text_color(move || theme().muted_foreground),
+                                                )
+                                                .into_element()
+                                        },
                                     )
-                                    .child(day_grid(days))
-                                    .child(
-                                        text("Days 29-31 use 'last day' for short months. Each selected day is a separate charge.")
-                                            .text_size(px(10.0))
-                                            .mt(px(9.0))
-                                            .text_color(move || theme().muted_foreground),
-                                    )
+                                    .otherwise(move || {
+                                        charge_days("Charge on these days", days).into_element()
+                                    })
                                     .into_element()
                                 })
                                 .into_element()
@@ -990,9 +1028,9 @@ fn form(
                                         .hint("Leave empty to start from today."),
                                     view()
                                         .w_full()
-                                        .child(
-                                            crate::components::date_picker::date_picker(start_date),
-                                        )
+                                        .child(crate::components::date_picker::date_picker(
+                                            start_date,
+                                        ))
                                         .into_element(),
                                 ),
                             ),
@@ -1004,9 +1042,9 @@ fn form(
                                         .hint("Last billing date (inclusive)."),
                                     view()
                                         .w_full()
-                                        .child(
-                                            crate::components::date_picker::date_picker(end_date),
-                                        )
+                                        .child(crate::components::date_picker::date_picker(
+                                            end_date,
+                                        ))
                                         .into_element(),
                                 ),
                             ),
@@ -1056,7 +1094,8 @@ fn form(
                 ))
                 .child(crate::components::field::field(
                     crate::components::field::FieldProps::new("Notes"),
-                    crate::components::textarea::text_area(notes, "Additional notes...").into_element(),
+                    crate::components::textarea::text_area(notes, "Additional notes...")
+                        .into_element(),
                 ))
                 .child(
                     when(
@@ -1367,110 +1406,6 @@ fn weekday_picker(weekdays: Signal<Vec<u8>>) -> impl IntoElement {
                         )
                 })),
         )
-}
-
-fn day_grid(days: Signal<Vec<u8>>) -> impl IntoElement {
-    view()
-        .w_full()
-        .grid()
-        .grid_template_columns(SharedString::from("repeat(11, minmax(0, 1fr))"))
-        .gap(px(4.0))
-        .mt(px(-4.0))
-        .children((1u8..=31).map(|day| {
-            let active = move || days.get().contains(&day);
-            button()
-                .cursor_pointer()
-                .cursor_pointer()
-                .items_center()
-                .justify_center()
-                .h(px(32.0))
-                .w_full()
-                .rounded(px(6.0))
-                .border(px(1.0))
-                .border_color(move || {
-                    if active() {
-                        theme().primary
-                    } else {
-                        theme().border
-                    }
-                })
-                .bg(move || {
-                    if active() {
-                        theme().primary
-                    } else {
-                        theme().card
-                    }
-                })
-                .on_press(move || {
-                    let mut values = days.get();
-                    if let Some(index) = values.iter().position(|value| *value == day) {
-                        values.remove(index);
-                    } else {
-                        values.push(day);
-                        values.sort_unstable();
-                    }
-                    days.set(values);
-                })
-                .child(
-                    text(day.to_string())
-                        .text_size(px(12.0))
-                        .font_weight(FontWeight::MEDIUM)
-                        .text_color(move || {
-                            if active() {
-                                theme().primary_foreground
-                            } else {
-                                theme().foreground
-                            }
-                        }),
-                )
-        }))
-        .child({
-            let active = move || days.get().contains(&0);
-            button()
-                .cursor_pointer()
-                .items_center()
-                .justify_center()
-                .h(px(32.0))
-                .w_full()
-                .rounded(px(6.0))
-                .border(px(1.0))
-                .border_color(move || {
-                    if active() {
-                        theme().primary
-                    } else {
-                        theme().border
-                    }
-                })
-                .bg(move || {
-                    if active() {
-                        theme().primary
-                    } else {
-                        theme().card
-                    }
-                })
-                .on_press(move || {
-                    let mut selected = days.get();
-                    if selected.contains(&0) {
-                        selected.retain(|day| *day != 0);
-                    } else {
-                        selected.retain(|day| *day < 29);
-                        selected.push(0);
-                    }
-                    days.set(selected);
-                })
-                .child(
-                    text("Last day")
-                        .text_size(px(11.0))
-                        .font_weight(FontWeight::MEDIUM)
-                        .text_color(move || {
-                            if active() {
-                                theme().primary_foreground
-                            } else {
-                                theme().foreground
-                            }
-                        }),
-                )
-        })
 }
 
 fn frequency_for(unit: &str) -> &'static str {
@@ -3184,6 +3119,7 @@ mod tests {
         assert!(source.contains("annual_month_field"));
         assert!(source.contains("month_name"));
         assert!(source.contains("Remove annual date"));
+        assert!(source.contains("charge_days("));
     }
 
     fn yearly_recurrence_preserves_multiple_annual_dates() {
