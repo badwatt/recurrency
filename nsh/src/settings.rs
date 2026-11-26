@@ -762,6 +762,90 @@ pub(crate) fn avatar_data_url(bytes: &[u8]) -> Result<String, String> {
     ))
 }
 
+fn entity_card(
+    name: String,
+    icon: String,
+    color: String,
+    is_default: bool,
+    is_system: bool,
+    show_actions: bool,
+    actions: AnyElement,
+) -> AnyElement {
+    let tint = crate::components::color_picker::color_value(&color);
+    view()
+        .w_full()
+        .rounded(px(12.0))
+        .border(px(1.0))
+        .border_color(move || theme().border.opacity(0.6))
+        .bg(move || rgba((tint & 0xffffff00) | 0x18))
+        .p(px(16.0))
+        .gap(px(12.0))
+        .child(
+            view()
+                .w_full()
+                .flex_row()
+                .items_center()
+                .gap(px(12.0))
+                .child(
+                    view()
+                        .h(px(48.0))
+                        .w(px(48.0))
+                        .flex_shrink_0()
+                        .items_center()
+                        .justify_center()
+                        .rounded(px(12.0))
+                        .border(px(1.0))
+                        .border_color(move || theme().foreground.opacity(0.06))
+                        .bg(move || rgba((tint & 0xffffff00) | 0x24))
+                        .child(crate::components::entity_icon::entity_icon(
+                            &icon, tint, 20.0,
+                        )),
+                )
+                .child(
+                    view()
+                        .flex_col()
+                        .min_w(px(0.0))
+                        .child(
+                            text(name)
+                                .number_of_lines(1)
+                                .text_size(px(16.0))
+                                .line_height(px(22.0))
+                                .font_weight(FontWeight::MEDIUM)
+                                .text_color(move || theme().foreground),
+                        )
+                        .when(is_default, |column| {
+                            column.child(
+                                text("Default")
+                                    .text_size(px(12.0))
+                                    .text_color(move || theme().muted_foreground),
+                            )
+                        })
+                        .when(is_system, |column| {
+                            column.child(
+                                text("System")
+                                    .text_size(px(10.0))
+                                    .letter_spacing(px(0.5))
+                                    .text_color(move || theme().muted_foreground.opacity(0.6)),
+                            )
+                        }),
+                ),
+        )
+        .when(show_actions, |card| {
+            card.child(
+                view()
+                    .w_full()
+                    .flex_row()
+                    .items_center()
+                    .justify_end()
+                    .pt(px(8.0))
+                    .border_t(px(1.0))
+                    .border_color(move || theme().border.opacity(0.4))
+                    .child(actions),
+            )
+        })
+        .into_element()
+}
+
 fn account_card(
     email: Signal<String>,
     _verified: bool,
@@ -3759,95 +3843,50 @@ fn money_card(server: String, token: String, modal: ui::ModalHost) -> impl IntoE
                     let edit_icon = icon.clone();
                     let edit_color = color.clone();
                     let open_edit = open_edit.clone();
-                    view()
-                        .w_full()
-                        .rounded(px(12.0))
-                        .border(px(1.0))
-                        .border_color(move || theme().border.opacity(0.6))
-                        .bg(move || theme().card)
-                        .p(px(16.0))
-                        .min_h(px(140.0))
-                        .gap(px(12.0))
-                        .child(
-                            view()
-                                .w_full()
-                                .min_h(px(44.0))
-                                .flex_row()
-                                .items_center()
-                                .gap(px(12.0))
-                                .child(crate::components::entity_icon::entity_icon(
-                                    &icon,
-                                    crate::components::color_picker::color_value(&color),
-                                    40.0,
-                                ))
-                                .child(
-                                    view()
-                                        .flex_col()
-                                        .min_w(px(0.0))
-                                        .child(
-                                            text(name)
-                                                .text_size(px(14.0))
-                                                .line_height(px(20.0))
-                                                .font_weight(FontWeight::SEMIBOLD)
-                                                .text_color(move || theme().foreground),
-                                        )
-                                        .when(is_default, |column| {
-                                            column.child(
-                                                text("Default")
-                                                    .text_size(px(12.0))
-                                                    .text_color(move || theme().muted_foreground),
-                                            )
-                                        }),
-                                ),
-                        )
-                        .child(
-                            view()
-                                .w_full()
-                                .flex_row()
-                                .items_center()
-                                .justify_end()
-                                .pt(px(8.0))
-                                .border_t(px(1.0))
-                                .border_color(move || theme().border.opacity(0.4))
-                                .child(
-                                    view()
-                                        .flex_row()
-                                        .items_center()
-                                        .gap(px(4.0))
-                                        .when(!is_default, |actions| {
-                                            let mark_default = mark_default.clone();
-                                            actions.child(ui::row_icon_button_labeled(
-                                                asset!("icons/star.svg"),
-                                                "Set account as default",
-                                                false,
-                                                move || mark_default(id),
-                                            ))
-                                        })
-                                        .child(ui::row_icon_button_labeled(
-                                            asset!("icons/pencil.svg"),
-                                            "Edit account",
-                                            false,
-                                            move || {
-                                                open_edit(
-                                                    id,
-                                                    edit_name.clone(),
-                                                    edit_icon.clone(),
-                                                    edit_color.clone(),
-                                                );
-                                            },
-                                        ))
-                                        .when(!is_default, |actions| {
-                                            let remove = remove.clone();
-                                            actions.child(ui::row_icon_button_labeled(
-                                                asset!("icons/trash.svg"),
-                                                "Delete account",
-                                                true,
-                                                move || remove(id),
-                                            ))
-                                        }),
-                                ),
-                        )
-                        .into_element()
+                    let actions = view()
+                        .flex_row()
+                        .items_center()
+                        .gap(px(4.0))
+                        .when(!is_default, |actions| {
+                            let mark_default = mark_default.clone();
+                            actions.child(ui::row_icon_button_labeled(
+                                asset!("icons/star.svg"),
+                                "Set account as default",
+                                false,
+                                move || mark_default(id),
+                            ))
+                        })
+                        .child(ui::row_icon_button_labeled(
+                            asset!("icons/pencil.svg"),
+                            "Edit account",
+                            false,
+                            move || {
+                                open_edit(
+                                    id,
+                                    edit_name.clone(),
+                                    edit_icon.clone(),
+                                    edit_color.clone(),
+                                );
+                            },
+                        ))
+                        .when(!is_default, |actions| {
+                            let remove = remove.clone();
+                            actions.child(ui::row_icon_button_labeled(
+                                asset!("icons/trash.svg"),
+                                "Delete account",
+                                true,
+                                move || remove(id),
+                            ))
+                        });
+                    entity_card(
+                        name,
+                        icon,
+                        color,
+                        is_default,
+                        false,
+                        true,
+                        actions.into_element(),
+                    )
                 },
             ))
             .into_element()
@@ -3887,104 +3926,41 @@ fn money_card(server: String, token: String, modal: ui::ModalHost) -> impl IntoE
                     });
                     let is_system = category.is_system;
                     let is_default = category.is_default;
-                    let subscriptions = item.subscription_count;
-                    let transactions = item.transaction_count;
                     let edit_name = name.clone();
                     let edit_icon = icon.clone();
                     let edit_color = color.clone();
                     let open_edit = open_edit.clone();
-                    view()
-                    .w_full()
-                    .rounded(px(12.0))
-                    .border(px(1.0))
-                    .border_color(move || theme().border.opacity(0.6))
-                    .bg(move || theme().card)
-                    .p(px(16.0))
-                    .min_h(px(140.0))
-                    .gap(px(12.0))
-                    .child(
-                        view()
-                            .w_full()
-                            .min_h(px(44.0))
-                            .flex_row()
-                            .items_center()
-                            .gap(px(12.0))
-                            .child(crate::components::entity_icon::entity_icon(
-                                &icon,
-                                crate::components::color_picker::color_value(&color),
-                                40.0,
-                            ))
-                            .child(
-                                view()
-                                    .flex_col()
-                                    .min_w(px(0.0))
-                                    .child(
-                                        text(name)
-                                            .text_size(px(14.0))
-                                            .line_height(px(20.0))
-                                            .font_weight(FontWeight::SEMIBOLD)
-                                            .text_color(move || theme().foreground),
-                                    )
-                                    .when(is_default, |column| {
-                                        column.child(
-                                            text("Default")
-                                                .text_size(px(12.0))
-                                                .text_color(move || theme().muted_foreground),
-                                        )
-                                    })
-                                    .when(is_system, |column| {
-                                        column.child(
-                                            text("System")
-                                                .text_size(px(10.0))
-                                                .text_color(move || theme().muted_foreground),
-                                        )
-                                    }),
-                            ),
+                    let remove_for_delete = remove.clone();
+                    let actions = view()
+                        .flex_row()
+                        .items_center()
+                        .gap(px(4.0))
+                        .child(ui::mini_icon_button(
+                            asset!("icons/pencil.svg"),
+                            false,
+                            move || {
+                                open_edit(
+                                    id,
+                                    edit_name.clone(),
+                                    edit_icon.clone(),
+                                    edit_color.clone(),
+                                );
+                            },
+                        ))
+                        .child(ui::mini_icon_button(
+                            asset!("icons/trash.svg"),
+                            true,
+                            move || remove_for_delete(id),
+                        ));
+                    entity_card(
+                        name,
+                        icon,
+                        color,
+                        is_default,
+                        is_system,
+                        !is_system,
+                        actions.into_element(),
                     )
-                    .child(
-                        view()
-                            .w_full()
-                            .flex_row()
-                            .items_center()
-                            .justify_between()
-                            .pt(px(8.0))
-                            .border_t(px(1.0))
-                            .border_color(move || theme().border.opacity(0.4))
-                            .child(
-                                text(format!(
-                                    "{subscriptions} subscriptions · {transactions} transactions"
-                                ))
-                                .text_size(px(11.0))
-                                .text_color(move || theme().muted_foreground),
-                            )
-                            .when(!is_system, |actions| {
-                                let remove = remove.clone();
-                                actions.child(
-                                    view()
-                                        .flex_row()
-                                        .items_center()
-                                        .gap(px(4.0))
-                                        .child(ui::mini_icon_button(
-                                            asset!("icons/pencil.svg"),
-                                            false,
-                                            move || {
-                                                open_edit(
-                                                    id,
-                                                    edit_name.clone(),
-                                                    edit_icon.clone(),
-                                                    edit_color.clone(),
-                                                );
-                                            },
-                                        ))
-                                        .child(ui::mini_icon_button(
-                                            asset!("icons/trash.svg"),
-                                            true,
-                                            move || remove(id),
-                                        )),
-                                )
-                            }),
-                    )
-                    .into_element()
                 },
             ))
             .into_element()
