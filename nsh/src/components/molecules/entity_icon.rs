@@ -102,6 +102,7 @@ pub fn entity_icon_live(name: Signal<String>, color: Signal<String>, size: f32) 
                 move || {
                     image(icon)
                         .size(px(size))
+                        .pointer_events(PointerEvents::None)
                         .tint_color(move || rgba(color_value(&color.get())))
                         .into_element()
                 },
@@ -121,6 +122,7 @@ pub fn entity_icon_colored(name: &str, color: Signal<String>, size: f32) -> AnyE
             .child(
                 image(icon)
                     .size(px(size))
+                    .pointer_events(PointerEvents::None)
                     .tint_color(move || rgba(color_value(&color.get()))),
             )
             .into_element(),

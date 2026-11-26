@@ -4,8 +4,7 @@
 use nsh_base::{button, theme};
 use nsh_core::prelude::*;
 
-use crate::components::color_picker::{color_picker, color_value};
-use crate::components::entity_icon::entity_icon;
+use crate::components::color_picker::color_picker;
 use crate::components::field::{FieldProps, field};
 use crate::components::input::text_input;
 
@@ -134,7 +133,9 @@ fn entity_icon_field(icon: Signal<String>, color: Signal<String>) -> AnyElement 
                 .rounded(px(8.0))
                 .border(px(1.0))
                 .border_color(move || theme().border.opacity(0.5))
-                .child(entity_icon(&icon.get(), color_value(&color.get()), 34.0))
+                .child(crate::components::entity_icon::entity_icon_live(
+                    icon, color, 34.0,
+                ))
                 .child(
                     text(move || icon.get())
                         .text_size(px(12.0))
@@ -175,7 +176,9 @@ fn entity_icon_field(icon: Signal<String>, color: Signal<String>) -> AnyElement 
                                     }
                                 })
                                 .on_press(move || icon.set(value.clone()))
-                                .child(entity_icon(name, color_value(&color.get()), 16.0))
+                                .child(crate::components::entity_icon::entity_icon_colored(
+                                    name, color, 16.0,
+                                ))
                                 .into_element()
                         }))
                         .into_element()
