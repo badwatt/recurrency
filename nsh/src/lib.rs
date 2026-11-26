@@ -60,6 +60,31 @@ impl Route {
         Route::Reports,
     ];
 
+    pub fn key(self) -> &'static str {
+        match self {
+            Route::Dashboard => "dashboard",
+            Route::Subscriptions => "subscriptions",
+            Route::Transactions => "transactions",
+            Route::Debts => "debts",
+            Route::Calendar => "calendar",
+            Route::Reports => "reports",
+            Route::Settings => "settings",
+        }
+    }
+
+    pub fn from_key(value: &str) -> Option<Self> {
+        Some(match value.trim().trim_start_matches('#') {
+            "dashboard" => Route::Dashboard,
+            "subscriptions" => Route::Subscriptions,
+            "transactions" => Route::Transactions,
+            "debts" => Route::Debts,
+            "calendar" => Route::Calendar,
+            "reports" => Route::Reports,
+            "settings" => Route::Settings,
+            _ => return None,
+        })
+    }
+
     pub fn label(self) -> &'static str {
         match self {
             Route::Dashboard => "Dashboard",
@@ -101,8 +126,9 @@ pub fn App() -> impl IntoElement {
     crate::format::init_date_format();
     ui::init_privacy();
     ui::init_logo_modal();
-    let route = signal(Route::Dashboard);
+    let route = signal(ui::stored_route());
     ui::init_route(route);
+    effect(move || ui::persist_route(route.get()));
     let stored = auth::has_stored_session();
     let session = signal(if stored {
         Session::Loading

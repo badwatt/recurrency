@@ -212,3 +212,16 @@ pub fn page_host() -> Option<String> {
     let host = location.hostname().ok()?;
     (!host.is_empty()).then_some(host)
 }
+
+/// Route fragment of the current page (`#subscriptions` → `subscriptions`).
+pub fn page_hash() -> Option<String> {
+    let hash = web_sys::window()?.location().hash().ok()?;
+    let value = hash.trim_start_matches('#').trim();
+    (!value.is_empty()).then(|| value.to_string())
+}
+
+pub fn set_page_hash(value: &str) {
+    if let Some(window) = web_sys::window() {
+        let _ = window.location().set_hash(value);
+    }
+}

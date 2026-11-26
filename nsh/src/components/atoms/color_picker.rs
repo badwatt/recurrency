@@ -5,7 +5,7 @@ use crate::components::input::text_input;
 use nsh_base::theme;
 use nsh_core::prelude::*;
 
-pub const DEFAULT_COLOR: &str = "#8b5cf6";
+pub const DEFAULT_COLOR: &str = "#6b7280";
 
 pub fn color_picker(value: Signal<String>) -> impl IntoElement {
     let current = value.get();
@@ -83,15 +83,15 @@ pub fn color_picker(value: Signal<String>) -> impl IntoElement {
                         .into_element()
                 })),
         )
-        .child(text_input(value, "#8b5cf6"))
+        .child(text_input(value, "#6b7280"))
 }
 
 pub fn color_value(hex: &str) -> u32 {
     let value = hex.trim_start_matches('#');
     if value.len() != 6 {
-        return 0x8b5cf6ff;
+        return 0x6b7280ff;
     }
-    let parsed = u32::from_str_radix(value, 16).unwrap_or(0x8b5cf6);
+    let parsed = u32::from_str_radix(value, 16).unwrap_or(0x6b7280);
     (parsed << 8) | 0xff
 }
 
@@ -159,7 +159,7 @@ mod tests {
     #[test]
     fn colours_convert_to_opaque_rgba() {
         assert_eq!(color_value("#000000"), 0x000000ff);
-        assert_eq!(color_value("bad"), 0x8b5cf6ff);
+        assert_eq!(color_value("bad"), 0x6b7280ff);
     }
 
     #[test]

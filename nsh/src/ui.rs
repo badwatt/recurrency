@@ -6,8 +6,11 @@ use crate::auth::AuthSession;
 use nsh_base::{button, theme};
 use nsh_core::element::Owner;
 use nsh_core::prelude::*;
+use nsh_core::storage::Storage;
 use std::cell::RefCell;
 use uuid::Uuid;
+
+const ROUTE_KEY: &str = "recurrency.route";
 
 thread_local! {
     static PRIVACY: RefCell<Option<Signal<bool>>> = const { RefCell::new(None) };
@@ -355,6 +358,24 @@ pub fn close_notifications() {
             open.set(false);
         }
     });
+}
+
+pub fn stored_route() -> Route {
+    #[cfg(target_arch = "wasm32")]
+    if let Some(hash) = crate::web_files::page_hash()
+        && let Some(route) = Route::from_key(&hash)
+    {
+        return route;
+    }
+    Storage::get_item(ROUTE_KEY)
+        .and_then(|value| Route::from_key(&value))
+        .unwrap_or(Route::Dashboard)
+}
+
+pub fn persist_route(route: Route) {
+    let _ = Storage::set_item(ROUTE_KEY, route.key());
+    #[cfg(target_arch = "wasm32")]
+    crate::web_files::set_page_hash(route.key());
 }
 
 pub fn init_route(route: Signal<Route>) {
