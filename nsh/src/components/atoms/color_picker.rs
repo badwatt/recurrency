@@ -8,8 +8,6 @@ use nsh_core::prelude::*;
 pub const DEFAULT_COLOR: &str = "#6b7280";
 
 pub fn color_picker(value: Signal<String>) -> impl IntoElement {
-    let current = value.get();
-    let (hue, saturation, lightness) = hex_to_hsl(&current);
     let spectrum_value = value;
     let light_value = value;
     view()
@@ -51,14 +49,18 @@ pub fn color_picker(value: Signal<String>) -> impl IntoElement {
                     (0..18).map(move |column| {
                         let h = column as f32 * 20.0;
                         let s = 100.0 - row as f32 * 13.0;
-                        let color = hsl_to_hex(h, s, lightness);
-                        let target = format!("#{color:06x}");
                         view()
                             .h_full()
                             .w_full()
-                            .bg(rgb(color))
+                            .bg(move || {
+                                let (_, _, l) = hex_to_hsl(&spectrum_value.get());
+                                rgb(hsl_to_hex(h, s, l))
+                            })
                             .cursor_pointer()
-                            .on_press(move || spectrum_value.set(target.clone()))
+                            .on_press(move || {
+                                let (_, _, l) = hex_to_hsl(&spectrum_value.get());
+                                spectrum_value.set(format!("#{:06x}", hsl_to_hex(h, s, l)));
+                            })
                             .into_element()
                     })
                 })),
@@ -72,14 +74,18 @@ pub fn color_picker(value: Signal<String>) -> impl IntoElement {
                 .flex_row()
                 .children((0..24).map(move |step| {
                     let l = step as f32 * 100.0 / 23.0;
-                    let color = hsl_to_hex(hue, saturation, l);
-                    let target = format!("#{color:06x}");
                     view()
                         .flex_grow(1.0)
                         .h_full()
-                        .bg(rgb(color))
+                        .bg(move || {
+                            let (h, s, _) = hex_to_hsl(&light_value.get());
+                            rgb(hsl_to_hex(h, s, l))
+                        })
                         .cursor_pointer()
-                        .on_press(move || light_value.set(target.clone()))
+                        .on_press(move || {
+                            let (h, s, _) = hex_to_hsl(&light_value.get());
+                            light_value.set(format!("#{:06x}", hsl_to_hex(h, s, l)));
+                        })
                         .into_element()
                 })),
         )
