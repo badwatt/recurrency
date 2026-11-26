@@ -474,7 +474,7 @@ fn hero(
                 }
             })
             .p(move || if compact.get() { px(24.0) } else { px(32.0) })
-            .border_l(px(0.0))
+            .border_l(move || if compact.get() { px(0.0) } else { px(1.0) })
             .border_t(move || if compact.get() { px(1.0) } else { px(0.0) })
             .border_color(move || theme().border.opacity(0.6))
             .bg(move || theme().muted.opacity(0.2))
