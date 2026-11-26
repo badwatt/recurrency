@@ -36,6 +36,7 @@ pub struct CategoryBudget {
     pub category_id: Uuid,
     pub name: String,
     pub color: String,
+    pub icon: String,
     pub amount: Decimal,
     pub pending: Decimal,
     pub charge_count: usize,
@@ -198,6 +199,9 @@ pub fn build_category_budgets(
             color: category
                 .and_then(|category| category.color.clone())
                 .unwrap_or_else(|| "#6b7280".to_string()),
+            icon: category
+                .and_then(|category| category.icon.clone())
+                .unwrap_or_else(|| "tag".to_string()),
             amount: Decimal::ZERO,
             pending: Decimal::ZERO,
             charge_count: 0,

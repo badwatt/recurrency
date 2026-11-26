@@ -78,7 +78,7 @@ pub fn reports(auth: AuthSession, compact: Signal<bool>) -> AnyElement {
                 .flex_row()
                 .flex_wrap()
                 .justify_start()
-                .items_center()
+                .items_start()
                 .child(
                     when(
                         move || !compact.get(),
@@ -419,6 +419,9 @@ fn category_donut(
                         let mut start = -TAU / 4.0;
                         for (index, category) in categories.iter().enumerate() {
                             let sweep = (category.percentage / total) as f32 * TAU;
+                            if sweep <= 0.0001 {
+                                continue;
+                            }
                             let color = category_color(data, &category.category_name);
                             painter = painter
                                 .stroke_color(rgb(parse_hex(&color)))
@@ -1091,5 +1094,17 @@ mod tests {
         assert_eq!(month_name(12), "December");
         assert_eq!(month_name(0), "January");
         assert_eq!(month_name(13), "Month");
+    }
+
+    #[test]
+    fn the_donut_skips_empty_slices() {
+        let source = include_str!("reports.rs");
+        assert!(source.contains("if sweep <= 0.0001"));
+    }
+
+    #[test]
+    fn the_chart_cards_stretch_to_the_same_height() {
+        let source = include_str!("reports.rs");
+        assert!(source.contains("items_stretch"));
     }
 }

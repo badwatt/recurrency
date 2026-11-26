@@ -269,6 +269,11 @@ pub fn menu_revision() -> u64 {
     MENU_VERSION.with(|slot| slot.borrow().map_or(0, |version| version.get()))
 }
 
+/// Whether the app-wide menu host currently owns an open surface.
+pub fn menu_open() -> bool {
+    MENU_STATE.with(|slot| slot.borrow().is_some())
+}
+
 pub fn close_menu() {
     MENU_STATE.with(|slot| {
         *slot.borrow_mut() = None;

@@ -53,7 +53,7 @@ pub fn dropdown_menu(
     };
     view()
         .cursor_pointer()
-        .h(px(40.0))
+        .h(px(36.0))
         .w(px(121.0))
         .px(px(12.0))
         .flex_row()

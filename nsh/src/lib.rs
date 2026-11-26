@@ -122,6 +122,8 @@ fn native(registry: &mut Registry) {
 pub fn App() -> impl IntoElement {
     #[cfg(target_arch = "wasm32")]
     crate::web_files::install_layout_css();
+    #[cfg(target_arch = "wasm32")]
+    crate::web_files::install_search_escape();
     crate::theme::apply(&crate::theme::saved());
     crate::format::init_date_format();
     ui::init_privacy();

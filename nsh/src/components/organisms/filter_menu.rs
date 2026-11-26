@@ -29,7 +29,6 @@ pub fn filter_menu(
     };
     view()
         .relative()
-        .z_index(120)
         .child(
             view()
                 .cursor_pointer()

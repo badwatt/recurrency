@@ -67,6 +67,37 @@ pub fn install_layout_css() {
     }
 }
 
+/// Clear the page search field when Escape is pressed. The native input owns
+/// its keys, so the browser listener edits the field and replays the input
+/// event the app already listens to.
+pub fn install_search_escape() {
+    let Ok(document) = document() else { return };
+    let on_key =
+        Closure::<dyn FnMut(web_sys::KeyboardEvent)>::new(move |event: web_sys::KeyboardEvent| {
+            if event.key() != "Escape" {
+                return;
+            }
+            let Some(target) = document.active_element() else {
+                return;
+            };
+            let Ok(input) = target.dyn_into::<HtmlInputElement>() else {
+                return;
+            };
+            if input.placeholder() != "Search" {
+                return;
+            }
+            input.set_value("");
+            if let Ok(replayed) = web_sys::Event::new("input") {
+                let _ = input.dispatch_event(&replayed);
+            }
+        });
+    if let Some(document) = web_sys::window().and_then(|window| window.document()) {
+        let _ =
+            document.add_event_listener_with_callback("keydown", on_key.as_ref().unchecked_ref());
+        on_key.forget();
+    }
+}
+
 #[derive(Clone, Copy)]
 enum ReadMode {
     Text,
@@ -223,5 +254,15 @@ pub fn page_hash() -> Option<String> {
 pub fn set_page_hash(value: &str) {
     if let Some(window) = web_sys::window() {
         let _ = window.location().set_hash(value);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn escape_clears_the_search_field_through_the_browser_listener() {
+        let source = include_str!("web_files.rs");
+        assert!(source.contains("install_search_escape"));
+        assert!(source.contains("input.set_value(\"\")"));
     }
 }

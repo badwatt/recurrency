@@ -122,6 +122,7 @@ pub fn select(props: SelectProps) -> impl IntoElement {
         create_color,
     } = props;
     let open = signal(false);
+    let inline_open = signal(false);
     let query = signal(String::new());
     let panel_width = signal(320.0_f32);
     let create_name = signal(String::new());
@@ -387,7 +388,11 @@ pub fn select(props: SelectProps) -> impl IntoElement {
                                             on_select(value_for_press.clone());
                                             query.set(String::new());
                                             crate::ui::release_select(select_id);
-                                            crate::ui::close_menu();
+                                            if inline_open.get() {
+                                                inline_open.set(false);
+                                            } else {
+                                                crate::ui::close_menu();
+                                            }
                                         })
                                         .child(
                                             text(label)
@@ -456,7 +461,10 @@ pub fn select(props: SelectProps) -> impl IntoElement {
     let has_value_for_text = has_value.clone();
     let has_value_for_color = has_value.clone();
     let create_form_for_overlay = create_form.clone();
+    let panel_for_inline = panel.clone();
     view()
+        .relative()
+        .z_index(move || if inline_open.get() { 60 } else { 0 })
         .w_full()
         .flex_col()
         .gap(px(6.0))
@@ -490,6 +498,10 @@ pub fn select(props: SelectProps) -> impl IntoElement {
                     },
                 )
                 .on_press(move |event: &PressEvent| {
+                    if crate::ui::menu_open() {
+                        inline_open.update(|open| *open = !*open);
+                        return;
+                    }
                     crate::ui::claim_select(select_id);
                     let panel_for_open = panel.clone();
                     let page = event.page_position;
@@ -561,6 +573,23 @@ pub fn select(props: SelectProps) -> impl IntoElement {
         )
         .child(
             when(
+                move || inline_open.get() && !creating.get(),
+                move || {
+                    let panel = panel_for_inline.clone();
+                    view()
+                        .absolute()
+                        .top(px(height + 4.0))
+                        .left(px(0.0))
+                        .w_full()
+                        .z_index(210)
+                        .child((*panel)())
+                        .into_element()
+                },
+            )
+            .otherwise(|| view().h(px(0.0)).into_element()),
+        )
+        .child(
+            when(
                 move || creating.get(),
                 move || {
                     let form = create_form_for_overlay.clone();
@@ -597,5 +626,12 @@ mod tests {
         let source = include_str!("select.rs");
         assert!(source.contains("auto_focus(true)"));
         assert!(source.contains("when(searchable"));
+    }
+
+    #[test]
+    fn select_opens_inline_when_it_already_lives_in_a_menu() {
+        let source = include_str!("select.rs");
+        assert!(source.contains("crate::ui::menu_open()"));
+        assert!(source.contains("inline_open"));
     }
 }

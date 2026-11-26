@@ -27,6 +27,15 @@ pub fn search_input(value: Signal<String>, placeholder: &'static str) -> impl In
             input()
                 .value(value)
                 .on_change(move |next: &str| value.set(next.to_string()))
+                .capture_keys(KeyCapture::keys(
+                    nsh_core::keymap::Keystroke::parse("escape", nsh_core::element::os())
+                        .into_iter(),
+                ))
+                .on_key_down(move |event: &KeyEvent| {
+                    if event.key == "Escape" {
+                        value.set(String::new());
+                    }
+                })
                 .placeholder(placeholder)
                 .auto_fill(AutoFill::Off)
                 .flex_grow(1.0)

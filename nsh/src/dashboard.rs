@@ -1217,8 +1217,14 @@ fn category_rows(
         move || data.get().unwrap_or_default().categories,
         |entry| {
             format!(
-                "{}-{}-{}-{}-{}",
-                entry.category_id, entry.amount, entry.pending, entry.name, entry.charge_count
+                "{}-{}-{}-{}-{}-{}-{}",
+                entry.category_id,
+                entry.amount,
+                entry.pending,
+                entry.name,
+                entry.charge_count,
+                entry.color,
+                entry.icon
             )
         },
         move |entry, _| category_row(entry.get(), currency.clone(), hovered, compact),
@@ -1236,6 +1242,9 @@ fn category_row(
     let count = format!("{} charges", entry.charge_count);
     let amount = format_currency(entry.amount, &currency);
     let pending = format_currency(entry.pending, &currency);
+    let icon = entry.icon;
+    let color = entry.color;
+    let color_for_icon = color.clone();
 
     let identity = view()
         .flex_grow(if compact { 0.0 } else { 1.0 })
@@ -1250,12 +1259,12 @@ fn category_row(
                 .items_center()
                 .justify_center()
                 .rounded(px(8.0))
-                .bg(move || theme().muted)
-                .child(
-                    image(asset!("icons/card.svg"))
-                        .size(px(16.0))
-                        .tint_color(move || theme().muted_foreground),
-                ),
+                .bg(move || rgba((crate::theme::parse_hex(&color) << 8) | 0x20))
+                .child(crate::components::entity_icon::entity_icon(
+                    &icon,
+                    crate::theme::parse_hex(&color_for_icon),
+                    18.0,
+                )),
         )
         .child(
             view()
