@@ -86,8 +86,8 @@ impl Section {
             Section::General => asset!("icons/sun.svg"),
             Section::Notifications => asset!("icons/bell.svg"),
             Section::Ai => asset!("icons/sparkles.svg"),
-            Section::Money => asset!("icons/tag.svg"),
-            Section::Data => asset!("icons/database.svg"),
+            Section::Money => asset!("icons/trending.svg"),
+            Section::Data => asset!("icons/notes.svg"),
             Section::Server => asset!("icons/monitor.svg"),
             Section::Admin => asset!("icons/shield.svg"),
             Section::About => asset!("icons/info.svg"),
@@ -4604,6 +4604,16 @@ fn admin_card(server: String, token: String, modal: ui::ModalHost) -> impl IntoE
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn every_settings_section_maps_to_an_icon() {
+        let source = include_str!("settings.rs");
+        let start = source.find("fn icon(self) -> ImageAsset").unwrap();
+        let end = source[start..].find("fn title(self)").unwrap() + start;
+        for section in Section::ALL {
+            assert!(source[start..end].contains(&format!("Section::{section:?} =>")));
+        }
+    }
 
     #[test]
     fn settings_sections_have_distinct_labels() {
