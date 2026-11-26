@@ -465,6 +465,7 @@ pub fn select(props: SelectProps) -> impl IntoElement {
     let panel_for_inline = panel.clone();
     view()
         .relative()
+        .test_id("nsh-select-field")
         .z_index(move || if inline_open.get() { 60 } else { 0 })
         .w_full()
         .flex_col()
@@ -640,6 +641,7 @@ mod tests {
         assert!(source.contains("crate::ui::menu_open()"));
         assert!(source.contains("inline_open"));
         assert!(source.contains("crate::ui::claim_select(select_id)"));
+        assert!(source.contains("nsh-select-panel"));
         assert!(source.contains("if show_label { height + 30.0 } else { height + 4.0 }"));
     }
 }

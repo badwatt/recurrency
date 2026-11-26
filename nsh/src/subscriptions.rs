@@ -1204,14 +1204,19 @@ fn annual_dates_editor(dates: Signal<Vec<AnnualDate>>) -> impl IntoElement {
                                         dates.set(next);
                                     },
                                 ))
-                                .child(view().h(px(40.0)).items_center().flex_shrink_0().child(
-                                    ui::action_button("Remove", true, move || {
-                                        let mut next = dates.get();
-                                        if index < next.len() {
-                                            next.remove(index);
-                                        }
-                                        dates.set(next);
-                                    }),
+                                .child(view().h(px(57.0)).pt(px(22.0)).flex_shrink_0().child(
+                                    ui::mini_icon_button_labeled(
+                                        asset!("icons/trash.svg"),
+                                        "Remove annual date",
+                                        true,
+                                        move || {
+                                            let mut next = dates.get();
+                                            if index < next.len() {
+                                                next.remove(index);
+                                            }
+                                            dates.set(next);
+                                        },
+                                    ),
                                 ))
                                 .into_element()
                         },
@@ -3034,6 +3039,7 @@ mod tests {
         assert!(input.contains("flex_shrink(1.0)"));
         assert!(source.contains("annual_month_field"));
         assert!(source.contains("month_name"));
+        assert!(source.contains("Remove annual date"));
     }
 
     fn yearly_recurrence_preserves_multiple_annual_dates() {

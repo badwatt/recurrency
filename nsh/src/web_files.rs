@@ -98,6 +98,63 @@ pub fn install_search_escape() {
     }
 }
 
+/// Close an inline select when the pointer goes down outside its panel and
+/// field. The document listener presses the panel's own trigger, so the toggle
+/// runs through NSH's event loop instead of writing signals from JavaScript.
+pub fn install_inline_select_dismiss() {
+    let Ok(document) = document() else { return };
+    let document_for_pointer = document.clone();
+    let on_pointer =
+        Closure::<dyn FnMut(web_sys::PointerEvent)>::new(move |event: web_sys::PointerEvent| {
+            let target = event
+                .target()
+                .and_then(|target| target.dyn_into::<web_sys::Element>().ok());
+            let Some(target) = target else { return };
+            if target
+                .closest("[data-testid='nsh-select-panel']")
+                .ok()
+                .flatten()
+                .is_some()
+                || target
+                    .closest("[data-testid='nsh-select-field']")
+                    .ok()
+                    .flatten()
+                    .is_some()
+            {
+                return;
+            }
+            let Ok(Some(panel)) =
+                document_for_pointer.query_selector("[data-testid='nsh-select-panel']")
+            else {
+                return;
+            };
+            let Ok(Some(field)) = panel.closest("[data-testid='nsh-select-field']") else {
+                return;
+            };
+            let Ok(Some(trigger)) = field.query_selector(".nsh-press") else {
+                return;
+            };
+            let init = web_sys::PointerEventInit::new();
+            init.set_bubbles(true);
+            init.set_cancelable(true);
+            init.set_composed(true);
+            init.set_client_x(event.client_x());
+            init.set_client_y(event.client_y());
+            init.set_pointer_id(1);
+            init.set_pointer_type("mouse");
+            init.set_is_primary(true);
+            for kind in ["pointerdown", "pointerup"] {
+                if let Ok(synthetic) = web_sys::PointerEvent::new_with_event_init_dict(kind, &init)
+                {
+                    let _ = trigger.dispatch_event(synthetic.as_ref());
+                }
+            }
+        });
+    let _ = document
+        .add_event_listener_with_callback("pointerdown", on_pointer.as_ref().unchecked_ref());
+    on_pointer.forget();
+}
+
 #[derive(Clone, Copy)]
 enum ReadMode {
     Text,
@@ -264,5 +321,12 @@ mod tests {
         let source = include_str!("web_files.rs");
         assert!(source.contains("install_search_escape"));
         assert!(source.contains("input.set_value(\"\")"));
+    }
+
+    #[test]
+    fn outside_presses_dismiss_inline_selects() {
+        let source = include_str!("web_files.rs");
+        assert!(source.contains("install_inline_select_dismiss"));
+        assert!(source.contains("nsh-select-panel"));
     }
 }
