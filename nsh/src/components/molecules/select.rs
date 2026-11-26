@@ -20,8 +20,10 @@ pub struct SelectProps {
     pub show_label: bool,
     pub height: f32,
     pub search_placeholder: String,
-    pub create: Option<Rc<dyn Fn(String, Rc<dyn Fn(Result<(), String>)>)>>,
+    pub create: Option<Rc<dyn Fn(String, String, String, Rc<dyn Fn(Result<(), String>)>)>>,
     pub create_title: String,
+    pub create_icon: String,
+    pub create_color: String,
 }
 
 impl SelectProps {
@@ -49,6 +51,8 @@ impl SelectProps {
             search_placeholder: "Search...".to_string(),
             create: None,
             create_title: "Create new".to_string(),
+            create_icon: "tag".to_string(),
+            create_color: crate::components::color_picker::DEFAULT_COLOR.to_string(),
         }
     }
 
@@ -79,11 +83,21 @@ impl SelectProps {
 
     pub fn create(
         mut self,
-        create: impl Fn(String, Rc<dyn Fn(Result<(), String>)>) + 'static,
+        create: impl Fn(String, String, String, Rc<dyn Fn(Result<(), String>)>) + 'static,
         title: impl Into<String>,
     ) -> Self {
         self.create = Some(Rc::new(create));
         self.create_title = title.into();
+        self
+    }
+
+    pub fn create_icon(mut self, icon: impl Into<String>) -> Self {
+        self.create_icon = icon.into();
+        self
+    }
+
+    pub fn create_color(mut self, color: impl Into<String>) -> Self {
+        self.create_color = color.into();
         self
     }
 }
@@ -104,14 +118,19 @@ pub fn select(props: SelectProps) -> impl IntoElement {
         search_placeholder,
         create,
         create_title,
+        create_icon,
+        create_color,
     } = props;
     let open = signal(false);
     let query = signal(String::new());
     let panel_width = signal(320.0_f32);
-    let menu_origin = signal((0.0_f32, 0.0_f32));
     let create_name = signal(String::new());
     let create_error = signal(String::new());
     let create_loading = signal(false);
+    let default_icon = Rc::new(create_icon);
+    let default_color = Rc::new(create_color);
+    let create_icon_value = signal(default_icon.to_string());
+    let create_color_value = signal(default_color.to_string());
     let creating = signal(false);
     let select_id = crate::ui::next_select_id();
     let host = crate::ui::select_host();
@@ -150,11 +169,16 @@ pub fn select(props: SelectProps) -> impl IntoElement {
                     Err(message) => create_error.set(message),
                 }
             });
-            create(name, done);
+            create(
+                name,
+                create_icon_value.get(),
+                create_color_value.get(),
+                done,
+            );
         });
-        let submit_for_input = submit_create.clone();
         let submit_for_button = submit_create.clone();
         view()
+            .w_full()
             .flex_col()
             .gap(px(10.0))
             .p(px(12.0))
@@ -164,39 +188,17 @@ pub fn select(props: SelectProps) -> impl IntoElement {
                     .font_weight(FontWeight::SEMIBOLD)
                     .text_color(move || theme().foreground),
             )
-            .child(
-                input()
-                    .value(create_name)
-                    .on_change(move |value: &str| {
-                        create_name.set(value.to_string());
-                        create_error.set(String::new());
-                    })
-                    .on_submit(move |_: &str| submit_for_input())
-                    .placeholder(title)
-                    .auto_fill(AutoFill::Off)
-                    .auto_focus(true)
-                    .h(px(36.0))
-                    .w_full()
-                    .px(px(8.0))
-                    .rounded(px(6.0))
-                    .border(px(1.0))
-                    .border_color(move || theme().border)
-                    .bg(move || theme().background)
-                    .text_size(px(14.0))
-                    .text_color(move || theme().foreground),
-            )
-            .child(
-                when(
-                    move || !create_error.get().is_empty(),
-                    move || {
-                        text(move || create_error.get())
-                            .text_size(px(11.0))
-                            .text_color(move || theme().destructive)
-                            .into_element()
+            .child(scroll().max_h(px(460.0)).w_full().child(
+                crate::components::entity_form::entity_form(
+                    crate::components::entity_form::EntityFormProps {
+                        name: create_name,
+                        icon: create_icon_value,
+                        color: create_color_value,
+                        error: create_error,
+                        preview_label: "NEW".to_string(),
                     },
-                )
-                .otherwise(|| view().h(px(0.0)).into_element()),
-            )
+                ),
+            ))
             .child(
                 view()
                     .w_full()
@@ -272,6 +274,10 @@ pub fn select(props: SelectProps) -> impl IntoElement {
     let create_title_for_panel = create_title.clone();
     let search_placeholder_for_panel = search_placeholder.clone();
     let panel = Rc::new(move || {
+        let default_icon_for_search = default_icon.clone();
+        let default_color_for_search = default_color.clone();
+        let default_icon_for_row = default_icon.clone();
+        let default_color_for_row = default_color.clone();
         let placeholder_text = search_placeholder_for_panel.clone();
         let create_title_text = create_title_for_panel.clone();
         let create_form_for_panel = create_form.clone();
@@ -300,6 +306,8 @@ pub fn select(props: SelectProps) -> impl IntoElement {
                     .otherwise(|| view().h(px(0.0)).into_element()),
             )
             .when(searchable, move |panel| {
+                let default_icon_for_search = default_icon_for_search.clone();
+                let default_color_for_search = default_color_for_search.clone();
                 panel.child(
                     view()
                         .w_full()
@@ -315,6 +323,9 @@ pub fn select(props: SelectProps) -> impl IntoElement {
                                 .on_submit(move |_: &str| {
                                     if (*can_create_for_input)() {
                                         create_name.set(query.get());
+                                        create_icon_value.set(default_icon_for_search.to_string());
+                                        create_color_value
+                                            .set(default_color_for_search.to_string());
                                         create_error.set(String::new());
                                         create_loading.set(false);
                                         creating.set(true);
@@ -409,6 +420,8 @@ pub fn select(props: SelectProps) -> impl IntoElement {
                 when(
                     move || !creating.get() && (*create_when)(),
                     move || {
+                        let default_icon_for_row = default_icon_for_row.clone();
+                        let default_color_for_row = default_color_for_row.clone();
                         let title = create_title_text.clone();
                         button()
                             .cursor_pointer()
@@ -422,6 +435,8 @@ pub fn select(props: SelectProps) -> impl IntoElement {
                             .gap(px(6.0))
                             .on_press(move || {
                                 create_name.set(query.get());
+                                create_icon_value.set(default_icon_for_row.to_string());
+                                create_color_value.set(default_color_for_row.to_string());
                                 create_error.set(String::new());
                                 create_loading.set(false);
                                 creating.set(true);
@@ -486,7 +501,6 @@ pub fn select(props: SelectProps) -> impl IntoElement {
                     let local = event.position;
                     let top = page.y.0 - local.y.0 + height + 4.0;
                     let left = (page.x.0 - local.x.0).max(8.0);
-                    menu_origin.set((top, left));
                     creating.set(false);
                     crate::ui::open_menu(crate::ui::MenuPlacement::At { top, left }, move || {
                         (*panel_for_open)()

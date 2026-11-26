@@ -5,6 +5,7 @@ pub mod compact_select;
 pub mod converted_amount;
 pub mod date_picker;
 pub mod empty_state;
+pub mod entity_form;
 pub mod entity_icon;
 pub mod field;
 pub mod list_toolbar;

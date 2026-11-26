@@ -28,11 +28,13 @@ pub struct SelectMenuProps {
     pub selected: Signal<Option<Uuid>>,
     pub options: Rc<dyn Fn() -> Vec<SelectOption>>,
     pub height: f32,
-    pub create: Option<Rc<dyn Fn(String, Rc<dyn Fn(Result<(), String>)>)>>,
+    pub create: Option<Rc<dyn Fn(String, String, String, Rc<dyn Fn(Result<(), String>)>)>>,
     pub search_placeholder: String,
     pub create_title: String,
     pub show_label: bool,
     pub searchable: bool,
+    pub create_icon: String,
+    pub create_color: String,
 }
 
 impl SelectMenuProps {
@@ -53,6 +55,8 @@ impl SelectMenuProps {
             create_title: "Create new".to_string(),
             show_label: true,
             searchable: true,
+            create_icon: "tag".to_string(),
+            create_color: crate::components::color_picker::DEFAULT_COLOR.to_string(),
         }
     }
 
@@ -63,7 +67,7 @@ impl SelectMenuProps {
 
     pub fn create(
         mut self,
-        create: impl Fn(String, Rc<dyn Fn(Result<(), String>)>) + 'static,
+        create: impl Fn(String, String, String, Rc<dyn Fn(Result<(), String>)>) + 'static,
     ) -> Self {
         self.create = Some(Rc::new(create));
         self
@@ -88,6 +92,16 @@ impl SelectMenuProps {
         self.searchable = searchable;
         self
     }
+
+    pub fn create_icon(mut self, icon: impl Into<String>) -> Self {
+        self.create_icon = icon.into();
+        self
+    }
+
+    pub fn create_color(mut self, color: impl Into<String>) -> Self {
+        self.create_color = color.into();
+        self
+    }
 }
 
 pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
@@ -102,6 +116,8 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
         create_title,
         show_label,
         searchable,
+        create_icon,
+        create_color,
     } = props;
     let label_options = options.clone();
     let panel_options = options.clone();
@@ -132,10 +148,15 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
     .height(height)
     .show_label(show_label)
     .searchable(searchable)
+    .create_icon(create_icon)
+    .create_color(create_color)
     .search_placeholder(search_placeholder)
     .clearable(move || selected.set(None));
     if let Some(create) = create {
-        props = props.create(move |name, done| create(name, done), create_title);
+        props = props.create(
+            move |name, icon, color, done| create(name, icon, color, done),
+            create_title,
+        );
     }
     crate::components::select::select(props)
 }

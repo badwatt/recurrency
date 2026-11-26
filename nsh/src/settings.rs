@@ -3634,8 +3634,9 @@ fn money_card(server: String, token: String, modal: ui::ModalHost) -> impl IntoE
             account_error.set(String::new());
             let save = save.clone();
             modal.open(move || {
-                account_dialog(
+                entity_dialog(
                     "Add Account",
+                    "ACCOUNT",
                     account_name,
                     account_icon,
                     account_color,
@@ -3657,8 +3658,9 @@ fn money_card(server: String, token: String, modal: ui::ModalHost) -> impl IntoE
             category_error.set(String::new());
             let save = save.clone();
             modal.open(move || {
-                category_dialog(
+                entity_dialog(
                     "Add Category",
+                    "CATEGORY",
                     category_name,
                     category_icon,
                     category_color,
@@ -3680,8 +3682,9 @@ fn money_card(server: String, token: String, modal: ui::ModalHost) -> impl IntoE
             account_error.set(String::new());
             let save = save.clone();
             modal.open(move || {
-                account_dialog(
+                entity_dialog(
                     "Edit Account",
+                    "ACCOUNT",
                     account_name,
                     account_icon,
                     account_color,
@@ -3703,8 +3706,9 @@ fn money_card(server: String, token: String, modal: ui::ModalHost) -> impl IntoE
             category_error.set(String::new());
             let save = save.clone();
             modal.open(move || {
-                category_dialog(
+                entity_dialog(
                     "Edit Category",
+                    "CATEGORY",
                     category_name,
                     category_icon,
                     category_color,
@@ -4120,121 +4124,9 @@ fn settings_tab(
         )
 }
 
-const ENTITY_ICONS: &[&str] = &[
-    "wallet",
-    "tag",
-    "receipt",
-    "card",
-    "subscriptions",
-    "transactions",
-    "debts",
-    "calendar",
-    "reports",
-    "settings",
-    "database",
-    "bell",
-    "clock",
-    "trending",
-    "notes",
-];
-
-fn entity_icon_field(icon: Signal<String>, color: Signal<String>) -> AnyElement {
-    let open = signal(false);
-    view()
-        .w_full()
-        .flex_col()
-        .gap(px(6.0))
-        .child(
-            view()
-                .w_full()
-                .flex_row()
-                .items_center()
-                .justify_between()
-                .child(
-                    text("Icon")
-                        .text_size(px(14.0))
-                        .line_height(px(20.0))
-                        .font_weight(FontWeight::MEDIUM)
-                        .text_color(move || theme().foreground),
-                )
-                .child(ui::action_button(
-                    if open.get() {
-                        "Hide icons"
-                    } else {
-                        "Choose icon"
-                    },
-                    false,
-                    move || open.set(!open.get()),
-                )),
-        )
-        .child(
-            view()
-                .w_full()
-                .flex_row()
-                .items_center()
-                .gap(px(10.0))
-                .child(crate::components::entity_icon::entity_icon(
-                    &icon.get(),
-                    crate::components::color_picker::color_value(&color.get()),
-                    32.0,
-                ))
-                .child(
-                    text(move || icon.get())
-                        .text_size(px(12.0))
-                        .text_color(move || theme().muted_foreground),
-                ),
-        )
-        .child(
-            when(
-                move || open.get(),
-                move || {
-                    view()
-                        .w_full()
-                        .grid()
-                        .grid_template_columns(SharedString::from("repeat(8, minmax(0, 1fr))"))
-                        .gap(px(4.0))
-                        .p(px(6.0))
-                        .rounded(px(8.0))
-                        .border(px(1.0))
-                        .border_color(move || theme().border)
-                        .bg(move || theme().background)
-                        .children(ENTITY_ICONS.iter().map(|name| {
-                            let value = (*name).to_string();
-                            let active_value = value.clone();
-                            let active = move || icon.get() == active_value;
-                            button()
-                                .cursor_pointer()
-                                .h(px(30.0))
-                                .w_full()
-                                .items_center()
-                                .justify_center()
-                                .rounded(px(5.0))
-                                .border(px(1.0))
-                                .border_color(move || {
-                                    if active() {
-                                        theme().primary
-                                    } else {
-                                        theme().border
-                                    }
-                                })
-                                .on_press(move || icon.set(value.clone()))
-                                .child(crate::components::entity_icon::entity_icon(
-                                    name,
-                                    crate::components::color_picker::color_value(&color.get()),
-                                    16.0,
-                                ))
-                                .into_element()
-                        }))
-                        .into_element()
-                },
-            )
-            .otherwise(|| view().h(px(0.0)).into_element()),
-        )
-        .into_element()
-}
-
-fn account_dialog(
+fn entity_dialog(
     title: &'static str,
+    preview_label: &'static str,
     name: Signal<String>,
     icon: Signal<String>,
     color: Signal<String>,
@@ -4250,87 +4142,15 @@ fn account_dialog(
             .body(
                 view()
                     .p(px(24.0))
-                    .gap(px(16.0))
-                    .child(ui::required_field("Name", name, "Main account"))
-                    .child(entity_icon_field(icon, color))
-                    .child(
-                        view()
-                            .flex_col()
-                            .gap(px(6.0))
-                            .child(ui::label("Color"))
-                            .child(crate::components::color_picker::color_picker(color)),
-                    )
-                    .child(
-                        when(
-                            move || !error.get().is_empty(),
-                            move || {
-                                text(move || error.get())
-                                    .text_size(px(12.0))
-                                    .text_color(move || theme().destructive)
-                                    .into_element()
-                            },
-                        )
-                        .otherwise(|| view().h(px(0.0)).into_element()),
-                    )
-                    .into_element(),
-            )
-            .footer(
-                view()
-                    .w_full()
-                    .flex_row()
-                    .justify_end()
-                    .gap(px(8.0))
-                    .child(dialog_button("Cancel", false, close))
-                    .child(dialog_button(
-                        if busy.get() { "Saving..." } else { "Save" },
-                        true,
-                        save,
+                    .child(crate::components::entity_form::entity_form(
+                        crate::components::entity_form::EntityFormProps {
+                            name,
+                            icon,
+                            color,
+                            error,
+                            preview_label: preview_label.to_string(),
+                        },
                     ))
-                    .into_element(),
-            ),
-    )
-    .into_element()
-}
-
-fn category_dialog(
-    title: &'static str,
-    name: Signal<String>,
-    icon: Signal<String>,
-    color: Signal<String>,
-    error: Signal<String>,
-    busy: Signal<bool>,
-    save: impl Fn() + 'static,
-    modal: ui::ModalHost,
-) -> AnyElement {
-    let close = move || modal.close();
-    crate::components::dialog::dialog(
-        crate::components::dialog::DialogProps::new(title, "", close)
-            .width(512.0)
-            .body(
-                view()
-                    .p(px(24.0))
-                    .gap(px(16.0))
-                    .child(ui::required_field("Name", name, "Entertainment"))
-                    .child(entity_icon_field(icon, color))
-                    .child(
-                        view()
-                            .flex_col()
-                            .gap(px(6.0))
-                            .child(ui::label("Color"))
-                            .child(crate::components::color_picker::color_picker(color)),
-                    )
-                    .child(
-                        when(
-                            move || !error.get().is_empty(),
-                            move || {
-                                text(move || error.get())
-                                    .text_size(px(12.0))
-                                    .text_color(move || theme().destructive)
-                                    .into_element()
-                            },
-                        )
-                        .otherwise(|| view().h(px(0.0)).into_element()),
-                    )
                     .into_element(),
             )
             .footer(

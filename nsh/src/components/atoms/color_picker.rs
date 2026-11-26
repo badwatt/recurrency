@@ -1,6 +1,5 @@
-//! Shared color field for categories and accounts. Native Shell has no
-//! platform color dialog, so the field offers a curated palette plus the
-//! current value as a readable hex label.
+//! Shared colour field for accounts and categories: preview, curated palette
+//! and a readable hex value.
 
 use crate::components::input::text_input;
 use nsh_base::{button, theme};
@@ -16,26 +15,49 @@ pub fn color_picker(value: Signal<String>) -> impl IntoElement {
     view()
         .w_full()
         .flex_col()
-        .gap(px(8.0))
+        .gap(px(10.0))
+        .child(
+            view()
+                .w_full()
+                .flex_row()
+                .items_center()
+                .gap(px(10.0))
+                .child(
+                    view()
+                        .h(px(34.0))
+                        .w(px(34.0))
+                        .rounded(px(999.0))
+                        .border(px(3.0))
+                        .border_color(move || theme().background)
+                        .bg(rgba(color_value(&value.get()))),
+                )
+                .child(
+                    text(move || value.get())
+                        .text_size(px(12.0))
+                        .font_family(crate::theme::MONO)
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(move || theme().muted_foreground),
+                ),
+        )
         .child(
             view()
                 .flex_row()
                 .flex_wrap()
-                .gap(px(6.0))
+                .gap(px(7.0))
                 .children(COLORS.iter().map(|color| {
                     let color = *color;
-                    let active = value.get().eq_ignore_ascii_case(color);
+                    let active = move || value.get().eq_ignore_ascii_case(color);
                     button()
                         .cursor_pointer()
-                        .h(px(24.0))
-                        .w(px(24.0))
+                        .h(px(28.0))
+                        .w(px(28.0))
                         .rounded(px(999.0))
-                        .border(px(2.0))
+                        .border(px(3.0))
                         .border_color(move || {
-                            if active {
+                            if active() {
                                 theme().foreground
                             } else {
-                                theme().border
+                                theme().border.opacity(0.5)
                             }
                         })
                         .bg(rgba(color_value(color)))

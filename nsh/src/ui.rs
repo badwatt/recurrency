@@ -828,7 +828,10 @@ pub fn editable_choice_picker(
             .map(|(id, name)| crate::components::select_menu::SelectOption::new(id, name))
             .collect()
     };
-    let create = move |name: String, done: std::rc::Rc<dyn Fn(Result<(), String>)>| {
+    let create = move |name: String,
+                       icon: String,
+                       color: String,
+                       done: std::rc::Rc<dyn Fn(Result<(), String>)>| {
         let name = name.trim().to_string();
         if name.is_empty() {
             return;
@@ -843,16 +846,20 @@ pub fn editable_choice_picker(
                     server,
                     token,
                     &name,
-                    Some("Wallet"),
-                    Some("#6b7280"),
+                    Some(icon.as_str()),
+                    Some(color.as_str()),
                 )
                 .await
                 .map(|account| account.id),
-                EntityKind::Category => {
-                    crate::api::create_category(server, token, &name, None, None)
-                        .await
-                        .map(|category| category.id)
-                }
+                EntityKind::Category => crate::api::create_category(
+                    server,
+                    token,
+                    &name,
+                    Some(icon.as_str()),
+                    Some(color.as_str()),
+                )
+                .await
+                .map(|category| category.id),
             };
             match result {
                 Ok(id) => {
@@ -876,6 +883,11 @@ pub fn editable_choice_picker(
         )
         .height(36.0)
         .create(create)
+        .create_icon(match kind {
+            EntityKind::Account => "wallet",
+            EntityKind::Category => "tag",
+        })
+        .create_color(crate::components::color_picker::DEFAULT_COLOR)
         .create_title(match kind {
             EntityKind::Account => "Create new account",
             EntityKind::Category => "Create new category",
