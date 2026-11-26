@@ -10,7 +10,6 @@ use uuid::Uuid;
 use crate::api::{self, DebtsData};
 use crate::auth::AuthSession;
 use crate::components::button::{ButtonProps, button as shared_button};
-use crate::components::charge_days::charge_days;
 use crate::components::confirm::{ConfirmProps, confirm_row};
 use crate::components::empty_state::empty_state;
 use crate::components::filter_menu::filter_menu;
@@ -19,8 +18,9 @@ use crate::components::search_input::search_input;
 use crate::components::select_menu::{SelectMenuProps, SelectOption, select_menu};
 use crate::components::sort_menu::{SortOption, sort_menu};
 use crate::components::string_select::{StringSelectProps, string_select};
+use crate::components::{BillingMode, BillingScheduleProps, billing_schedule};
 use crate::format::{format_currency, format_date};
-use crate::models::{Debt, DebtPayment};
+use crate::models::{AnnualDate, Debt, DebtPayment};
 use crate::theme as design;
 use crate::ui;
 
@@ -860,6 +860,10 @@ fn form(
             }
         }
     });
+    let schedule_interval = signal("1".to_string());
+    let schedule_unit = signal("month".to_string());
+    let schedule_weekdays = signal(Vec::<u8>::new());
+    let schedule_annual_dates = signal(Vec::<AnnualDate>::new());
     let logo_results = signal(Vec::<(String, String)>::new());
     let logo_loading = signal(false);
     let logo_error = signal(String::new());
@@ -1045,7 +1049,15 @@ fn form(
                                 .w_full()
                                 .flex_col()
                                 .gap(px(6.0))
-                                .child(charge_days("Charge days", payment_days))
+                                .child(billing_schedule(BillingScheduleProps {
+                                    interval: schedule_interval,
+                                    unit: schedule_unit,
+                                    days: payment_days,
+                                    weekdays: schedule_weekdays,
+                                    annual_dates: schedule_annual_dates,
+                                    start_date,
+                                    mode: BillingMode::Monthly,
+                                }))
                                 .child(
                                     text(
                                         "This also creates a monthly subscription for the payment.",
@@ -1910,8 +1922,9 @@ mod tests {
     }
 
     #[test]
-    fn automatic_debts_reuse_the_shared_charge_days() {
+    fn automatic_debts_reuse_the_billing_schedule() {
         let source = include_str!("debts.rs");
-        assert!(source.contains("charge_days(\"Charge days\""));
+        assert!(source.contains("BillingMode::Monthly"));
+        assert!(source.contains("billing_schedule(BillingScheduleProps"));
     }
 }

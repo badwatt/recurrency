@@ -21,7 +21,7 @@ use crate::components::list_toolbar::list_toolbar;
 use crate::components::select_menu::{SelectMenuProps, SelectOption, select_menu};
 use crate::components::sort_menu::{SortOption, sort_menu};
 use crate::components::string_select::{StringSelectProps, string_select};
-use crate::components::{BillingScheduleProps, billing_schedule};
+use crate::components::{BillingMode, BillingScheduleProps, billing_schedule};
 use crate::format::format_date;
 use crate::models::{AnnualDate, Recurrence, Subscription};
 use crate::ui;
@@ -768,6 +768,7 @@ fn form(
                     weekdays,
                     annual_dates,
                     start_date,
+                    mode: BillingMode::Full,
                 }))
                 .child(
                     view()

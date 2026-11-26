@@ -53,7 +53,7 @@ components/
 
 | Component | Purpose |
 | --- | --- |
-| `billing_schedule` | interval/unit, weekly, monthly, yearly and day schedule |
+| `billing_schedule` | interval/unit, weekly, monthly, yearly and day schedule; `Monthly` mode for debts |
 | `confirm` | destructive confirmation row and dialog |
 | `dialog` + `ModalHost` | one shell for every form and destructive flow |
 | `dropdown_menu` | labelled action menu |

@@ -13,6 +13,12 @@ use crate::models::AnnualDate;
 use crate::reports::month_name;
 use crate::ui;
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum BillingMode {
+    Full,
+    Monthly,
+}
+
 #[derive(Clone, Copy)]
 pub struct BillingScheduleProps {
     pub interval: Signal<String>,
@@ -21,6 +27,7 @@ pub struct BillingScheduleProps {
     pub weekdays: Signal<Vec<u8>>,
     pub annual_dates: Signal<Vec<AnnualDate>>,
     pub start_date: Signal<String>,
+    pub mode: BillingMode,
 }
 
 pub fn billing_schedule(props: BillingScheduleProps) -> impl IntoElement {
@@ -31,6 +38,7 @@ pub fn billing_schedule(props: BillingScheduleProps) -> impl IntoElement {
         weekdays,
         annual_dates,
         start_date,
+        mode,
     } = props;
     effect(move || {
         if unit.get() == "week" && weekdays.get().is_empty() {
@@ -163,12 +171,15 @@ pub fn billing_schedule(props: BillingScheduleProps) -> impl IntoElement {
             ),
     )
     .child(
-        view()
-            .w_full()
-            .flex_col()
-            .gap(px(8.0))
-            .child(
-                text("REPEAT EVERY")
+        when(
+            move || mode == BillingMode::Full,
+            move || {
+                view()
+                    .w_full()
+                    .flex_col()
+                    .gap(px(8.0))
+                    .child(
+                        text("REPEAT EVERY")
                     .text_size(px(10.0))
                     .letter_spacing(px(0.9))
                     .font_weight(FontWeight::SEMIBOLD)
@@ -243,7 +254,11 @@ pub fn billing_schedule(props: BillingScheduleProps) -> impl IntoElement {
                                 )),
                             ),
                     ),
-            ),
+            )
+                .into_element()
+            },
+        )
+        .otherwise(|| view().h(px(0.0)).into_element()),
     )
     .child(
         when(
