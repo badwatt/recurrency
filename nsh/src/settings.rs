@@ -3446,10 +3446,10 @@ fn exchange_rates_card(server: String, token: String) -> impl IntoElement {
 
 fn money_card(server: String, token: String, modal: ui::ModalHost) -> impl IntoElement {
     let compact = crate::ui::compact_active();
-    let data = resource(|| Some(()), {
+    let data = resource(|| Some(crate::ui::data_revision()), {
         let server = server.clone();
         let token = token.clone();
-        move |(), _| {
+        move |_version, _| {
             let server = server.clone();
             let token = token.clone();
             async move { crate::api::load_money_counts(server, token).await }
@@ -3558,9 +3558,10 @@ fn money_card(server: String, token: String, modal: ui::ModalHost) -> impl IntoE
                     Ok(()) => {
                         account_error.set(String::new());
                         account_busy.set(false);
-                        modal.close();
-                        crate::components::toast::success("Account saved.");
                         data.refetch();
+                        crate::ui::bump_data();
+                        crate::components::toast::success("Account saved.");
+                        modal.close();
                     }
                     Err(message) => {
                         account_error.set(message);
@@ -3611,9 +3612,10 @@ fn money_card(server: String, token: String, modal: ui::ModalHost) -> impl IntoE
                     Ok(()) => {
                         category_error.set(String::new());
                         category_busy.set(false);
-                        modal.close();
-                        crate::components::toast::success("Category saved.");
                         data.refetch();
+                        crate::ui::bump_data();
+                        crate::components::toast::success("Category saved.");
+                        modal.close();
                     }
                     Err(message) => {
                         category_error.set(message);
@@ -3735,10 +3737,11 @@ fn money_card(server: String, token: String, modal: ui::ModalHost) -> impl IntoE
                 move || data_for_accounts.get().unwrap_or_default().0,
                 |item| {
                     format!(
-                        "{}-{}-{:?}-{}",
+                        "{}-{}-{:?}-{:?}-{}",
                         item.account.id,
                         item.account.name,
                         item.account.icon,
+                        item.account.color,
                         item.account.is_default
                     )
                 },
@@ -3866,8 +3869,11 @@ fn money_card(server: String, token: String, modal: ui::ModalHost) -> impl IntoE
                 move || data_for_categories.get().unwrap_or_default().1,
                 |item| {
                     format!(
-                        "{}-{}-{:?}",
-                        item.category.id, item.category.name, item.category.icon
+                        "{}-{}-{:?}-{:?}",
+                        item.category.id,
+                        item.category.name,
+                        item.category.icon,
+                        item.category.color
                     )
                 },
                 move |item, _| {
