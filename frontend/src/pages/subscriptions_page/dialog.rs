@@ -358,6 +358,7 @@ pub(crate) fn render_dialog(
 
                 // Optional first payment and end date, hidden until requested.
                 div { class: "grid grid-cols-1 gap-4 sm:grid-cols-2",
+                    div { class: "min-h-[68px]",
                     if form_start_date.is_empty() {
                         Button {
                             variant: ButtonVariant::Outline,
@@ -383,6 +384,8 @@ pub(crate) fn render_dialog(
                             }
                         }
                     }
+                    }
+                    div { class: "min-h-[68px]",
                     if form_end_date.is_empty() {
                         Button {
                             variant: ButtonVariant::Outline,
@@ -407,6 +410,7 @@ pub(crate) fn render_dialog(
                                 },
                             }
                         }
+                    }
                     }
                 }
 

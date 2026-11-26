@@ -21,7 +21,7 @@ use crate::components::sort_menu::{SortOption, sort_menu};
 use crate::components::string_select::{StringSelectProps, string_select};
 use crate::components::{BillingMode, BillingScheduleProps, billing_schedule};
 use crate::format::{format_currency, format_date};
-use crate::models::{AnnualDate, Debt, DebtPayment};
+use crate::models::{AnnualDate, Debt, DebtPayment, Recurrence};
 use crate::theme as design;
 use crate::ui;
 
@@ -37,6 +37,8 @@ pub struct CreateDebtRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub monthly_payment: Option<Decimal>,
     pub payment_days: Vec<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub recurrence: Option<Recurrence>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub first_payment: Option<NaiveDate>,
     #[serde(default)]
@@ -58,6 +60,10 @@ struct DebtForm {
     start_date: Signal<String>,
     debt_type: Signal<String>,
     payment_days: Signal<Vec<u8>>,
+    interval: Signal<String>,
+    unit: Signal<String>,
+    weekdays: Signal<Vec<u8>>,
+    annual_dates: Signal<Vec<AnnualDate>>,
     currency: Signal<String>,
     notes: Signal<String>,
     logo_url: Signal<String>,
@@ -140,6 +146,10 @@ pub fn debts(
     let debt_type = signal("manual".to_string());
     let form_currency = signal(currency.clone());
     let payment_days = signal(Vec::<u8>::new());
+    let schedule_interval = signal("1".to_string());
+    let schedule_unit = signal("month".to_string());
+    let schedule_weekdays = signal(Vec::<u8>::new());
+    let schedule_annual_dates = signal(Vec::<AnnualDate>::new());
     let notes = signal(String::new());
     let logo_url = signal(String::new());
     let account_id = signal(None::<Uuid>);
@@ -180,6 +190,10 @@ pub fn debts(
         start_date,
         debt_type,
         payment_days,
+        interval: schedule_interval,
+        unit: schedule_unit,
+        weekdays: schedule_weekdays,
+        annual_dates: schedule_annual_dates,
         currency: form_currency,
         notes,
         logo_url,
@@ -202,13 +216,16 @@ pub fn debts(
 
     let open_form = move || {
         let snapshot = data.get().unwrap_or_default();
-        let today = Local::now().date_naive();
         name.set(String::new());
         total.set(String::new());
         monthly.set(String::new());
-        start_date.set(today.to_string());
+        start_date.set(String::new());
         debt_type.set("manual".to_string());
         payment_days.set(Vec::new());
+        schedule_interval.set("1".to_string());
+        schedule_unit.set("month".to_string());
+        schedule_weekdays.set(Vec::new());
+        schedule_annual_dates.set(Vec::new());
         form_currency.set(currency.clone());
         notes.set(String::new());
         logo_url.set(String::new());
@@ -788,6 +805,10 @@ pub fn open_create_dialog(auth: AuthSession, modal: ui::ModalHost, date: Option<
         start_date: signal(date.map(|value| value.to_string()).unwrap_or_default()),
         debt_type: signal("manual".to_string()),
         payment_days: signal(Vec::<u8>::new()),
+        interval: signal("1".to_string()),
+        unit: signal("month".to_string()),
+        weekdays: signal(Vec::<u8>::new()),
+        annual_dates: signal(Vec::<AnnualDate>::new()),
         currency: signal(currency.clone()),
         notes: signal(String::new()),
         logo_url: signal(String::new()),
@@ -828,6 +849,10 @@ fn form(
         start_date,
         debt_type,
         payment_days,
+        interval,
+        unit,
+        weekdays,
+        annual_dates,
         currency: form_currency,
         notes,
         logo_url,
@@ -862,10 +887,6 @@ fn form(
             payment_days.set(vec![date.day() as u8]);
         }
     });
-    let schedule_interval = signal("1".to_string());
-    let schedule_unit = signal("month".to_string());
-    let schedule_weekdays = signal(Vec::<u8>::new());
-    let schedule_annual_dates = signal(Vec::<AnnualDate>::new());
     let logo_results = signal(Vec::<(String, String)>::new());
     let logo_loading = signal(false);
     let logo_error = signal(String::new());
@@ -937,7 +958,22 @@ fn form(
                 category_id: category_id.get(),
                 debt_type: debt_type.get(),
                 monthly_payment: monthly_value,
-                payment_days: days,
+                payment_days: days.clone(),
+                recurrence: automatic.then(|| {
+                    crate::subscriptions::recurrence_for(
+                        &unit.get(),
+                        &days,
+                        &weekdays.get(),
+                        &annual_dates.get(),
+                        start_value,
+                        interval
+                            .get()
+                            .trim()
+                            .parse::<u16>()
+                            .unwrap_or(1)
+                            .clamp(1, 100),
+                    )
+                }),
                 first_payment,
                 clear_first_payment: first_payment.is_none(),
                 start_date: Some(start_value),
@@ -1065,13 +1101,13 @@ fn form(
                                 .flex_col()
                                 .gap(px(6.0))
                                 .child(billing_schedule(BillingScheduleProps {
-                                    interval: schedule_interval,
-                                    unit: schedule_unit,
+                                    interval,
+                                    unit,
                                     days: payment_days,
-                                    weekdays: schedule_weekdays,
-                                    annual_dates: schedule_annual_dates,
+                                    weekdays,
+                                    annual_dates,
                                     start_date,
-                                    mode: BillingMode::Monthly,
+                                    mode: BillingMode::Full,
                                 }))
                                 .child(
                                     text(
@@ -1571,6 +1607,10 @@ fn card_actions(
         form.start_date.set(edit_debt.start_date.to_string());
         form.debt_type.set(edit_debt.debt_type.clone());
         form.payment_days.set(edit_debt.payment_days.clone());
+        form.interval.set(edit_debt.recurrence.interval.to_string());
+        form.unit.set(edit_debt.recurrence.unit.clone());
+        form.weekdays.set(edit_debt.recurrence.weekdays.clone());
+        form.annual_dates.set(edit_debt.recurrence.dates.clone());
         form.currency.set(edit_debt.currency.clone());
         form.notes.set(edit_debt.notes.clone().unwrap_or_default());
         form.logo_url
@@ -1857,6 +1897,7 @@ mod tests {
             debt_type: "manual".to_string(),
             monthly_payment: None,
             payment_days: Vec::new(),
+            recurrence: Recurrence::default(),
             start_date: date(2026, 1, 1),
             next_payment_date: None,
             subscription_id: None,
@@ -1925,6 +1966,7 @@ mod tests {
             debt_type: "automatic".to_string(),
             monthly_payment: Some(Decimal::from(250)),
             payment_days: vec![22],
+            recurrence: None,
             first_payment: Some(date(2026, 11, 22)),
             clear_first_payment: false,
             start_date: Some(date(2026, 11, 22)),

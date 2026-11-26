@@ -135,6 +135,34 @@ impl DebtService {
                 ));
             }
         }
+        let recurrence = req.recurrence.clone().unwrap_or_else(|| Recurrence {
+            interval: 1,
+            unit: "month".into(),
+            days: payment_days.clone(),
+            ..Default::default()
+        });
+        if debt_type == DEBT_TYPE_AUTOMATIC {
+            validate_recurrence(&recurrence)?;
+            if recurrence.unit == "month" {
+                payment_days = recurrence.days.clone();
+            }
+        }
+        let frequency = match recurrence.unit.as_str() {
+            "day" => "daily",
+            "week" => "weekly",
+            "year" => "yearly",
+            _ => "monthly",
+        };
+        let schedule_day = match recurrence.unit.as_str() {
+            "month" => recurrence
+                .days
+                .first()
+                .map(|day| if *day == 0 { 31 } else { i16::from(*day) }),
+            "week" => recurrence.weekdays.first().map(|day| i16::from(*day)),
+            "year" => recurrence.dates.first().map(|date| i16::from(date.day)),
+            _ => None,
+        };
+        let schedule_month = recurrence.dates.first().map(|date| i16::from(date.month));
         let (monthly_payment, next_payment_date, subscription_id) = if debt_type
             == DEBT_TYPE_AUTOMATIC
         {
@@ -146,13 +174,6 @@ impl DebtService {
                     "Monthly payment must be greater than zero".to_string(),
                 ));
             }
-            let recurrence = Recurrence {
-                interval: 1,
-                unit: "month".into(),
-                days: payment_days.clone(),
-                ..Default::default()
-            };
-            validate_recurrence(&recurrence)?;
             let subscription = SubscriptionService::create(
                 pool,
                 user_id,
@@ -160,18 +181,9 @@ impl DebtService {
                     name: req.name.clone(),
                     amount: monthly,
                     currency: req.currency.clone(),
-                    frequency: "monthly".into(),
-                    schedule_day: Some(if payment_days.first() == Some(&0) {
-                        31
-                    } else {
-                        i16::from(
-                            payment_days
-                                .first()
-                                .copied()
-                                .unwrap_or(start_date.day() as u8),
-                        )
-                    }),
-                    schedule_month: None,
+                    frequency: frequency.to_string(),
+                    schedule_day,
+                    schedule_month,
                     recurrence: Some(recurrence.clone()),
                     is_active: Some(true),
                     start_date,
@@ -197,8 +209,8 @@ impl DebtService {
             r#"
             INSERT INTO debts (id, user_id, account_id, category_id, name, currency,
                 total_amount, remaining_amount, debt_type, monthly_payment,
-                payment_days, start_date, next_payment_date, subscription_id, is_active, notes, logo_url, created_at, updated_at)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$7,$8,$9,$10,$11,$12,$13,true,$14,$15,$16,$16)
+                payment_days, recurrence, start_date, next_payment_date, subscription_id, is_active, notes, logo_url, created_at, updated_at)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$7,$8,$9,$10,$11,$12,$13,$14,true,$15,$16,$17,$17)
             RETURNING *
             "#,
         )
@@ -212,6 +224,7 @@ impl DebtService {
         .bind(&debt_type)
         .bind(monthly_payment)
         .bind(sqlx::types::Json(&payment_days))
+        .bind(sqlx::types::Json(&recurrence))
         .bind(start_date)
         .bind(next_payment_date)
         .bind(subscription_id)
@@ -319,14 +332,15 @@ impl DebtService {
         } else {
             payment_days.clear();
         }
-        let recurrence = Recurrence {
-            interval: 1,
-            unit: "month".into(),
-            days: payment_days.clone(),
-            ..Default::default()
-        };
+        let recurrence = req
+            .recurrence
+            .clone()
+            .unwrap_or_else(|| existing.recurrence.clone());
         if debt_type == DEBT_TYPE_AUTOMATIC {
             validate_recurrence(&recurrence)?;
+            if recurrence.unit == "month" {
+                payment_days = recurrence.days.clone();
+            }
         }
 
         let mut monthly_payment = None;
@@ -345,19 +359,25 @@ impl DebtService {
                 ));
             }
             monthly_payment = Some(monthly);
-            let schedule_changed = payment_days != existing.payment_days
+            let schedule_changed = recurrence != existing.recurrence
                 || start_date != existing.start_date
                 || requested_first_payment.is_some()
                 || req.clear_first_payment;
-            let schedule_day = if payment_days.first() == Some(&0) {
-                31
-            } else {
-                i16::from(
-                    payment_days
-                        .first()
-                        .copied()
-                        .unwrap_or(start_date.day() as u8),
-                )
+            let schedule_day = match recurrence.unit.as_str() {
+                "month" => recurrence
+                    .days
+                    .first()
+                    .map(|day| if *day == 0 { 31 } else { i16::from(*day) }),
+                "week" => recurrence.weekdays.first().map(|day| i16::from(*day)),
+                "year" => recurrence.dates.first().map(|date| i16::from(date.day)),
+                _ => None,
+            };
+            let schedule_month = recurrence.dates.first().map(|date| i16::from(date.month));
+            let frequency = match recurrence.unit.as_str() {
+                "day" => "daily",
+                "week" => "weekly",
+                "year" => "yearly",
+                _ => "monthly",
             };
             if let Some(existing_subscription) = existing.subscription_id {
                 SubscriptionService::update(
@@ -368,8 +388,9 @@ impl DebtService {
                         name: req.name.clone(),
                         amount: Some(monthly),
                         currency: Some(currency.clone()),
-                        frequency: Some("monthly".to_string()),
-                        schedule_day: Some(schedule_day),
+                        frequency: Some(frequency.to_string()),
+                        schedule_day,
+                        schedule_month,
                         recurrence: Some(recurrence.clone()),
                         start_date: Some(start_date),
                         first_payment: requested_first_payment,
@@ -400,9 +421,9 @@ impl DebtService {
                         name: req.name.clone().unwrap_or_else(|| existing.name.clone()),
                         amount: monthly,
                         currency: currency.clone(),
-                        frequency: "monthly".into(),
-                        schedule_day: Some(schedule_day),
-                        schedule_month: None,
+                        frequency: frequency.to_string(),
+                        schedule_day,
+                        schedule_month,
                         recurrence: Some(recurrence.clone()),
                         is_active: Some(true),
                         start_date,
@@ -456,9 +477,9 @@ impl DebtService {
             r#"
             UPDATE debts SET name=$1, total_amount=$2, remaining_amount=$3, currency=$4,
                 account_id=$5, category_id=$6, debt_type=$7, monthly_payment=$8,
-                payment_days=$9, start_date=$10, next_payment_date=$11,
-                subscription_id=$12, is_active=$13, notes=$14, logo_url=$15, updated_at=NOW()
-            WHERE id=$16 AND user_id=$17
+                payment_days=$9, recurrence=$10, start_date=$11, next_payment_date=$12,
+                subscription_id=$13, is_active=$14, notes=$15, logo_url=$16, updated_at=NOW()
+            WHERE id=$17 AND user_id=$18
             RETURNING *
             "#,
         )
@@ -471,6 +492,7 @@ impl DebtService {
         .bind(&debt_type)
         .bind(monthly_payment)
         .bind(sqlx::types::Json(&payment_days))
+        .bind(sqlx::types::Json(&recurrence))
         .bind(start_date)
         .bind(next_payment_date)
         .bind(subscription_id)
@@ -615,16 +637,7 @@ impl DebtService {
                 .next_payment_date
                 .ok_or_else(|| AppError::Internal("Missing next payment date".into()))?;
             let mut last_paid = next;
-            let mut days = debt.payment_days.0.clone();
-            if days.is_empty() {
-                days.push(debt.start_date.day() as u8);
-            }
-            let recurrence = Recurrence {
-                interval: 1,
-                unit: "month".into(),
-                days,
-                ..Default::default()
-            };
+            let recurrence = debt.recurrence.0.clone();
             let mut tx = pool.begin().await?;
             while next <= today && remaining > Decimal::ZERO {
                 let amount = monthly.min(remaining);

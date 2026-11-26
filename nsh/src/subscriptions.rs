@@ -928,7 +928,7 @@ fn frequency_for(unit: &str) -> &'static str {
     }
 }
 
-fn recurrence_for(
+pub(crate) fn recurrence_for(
     unit: &str,
     days: &[u8],
     weekdays: &[u8],

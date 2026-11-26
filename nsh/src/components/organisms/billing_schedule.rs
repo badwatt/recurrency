@@ -14,6 +14,84 @@ use crate::recurrence::next_occurrence_on_or_after;
 use crate::reports::month_name;
 use crate::ui;
 
+fn unit_caption(unit: &str, interval: u16) -> String {
+    let cadence = if interval == 1 {
+        match unit {
+            "week" => "CHARGES WEEKLY".to_string(),
+            "year" => "CHARGES YEARLY".to_string(),
+            "day" => "CHARGES DAILY".to_string(),
+            _ => "CHARGES MONTHLY".to_string(),
+        }
+    } else {
+        match unit {
+            "week" => format!("EVERY {interval} WEEKS"),
+            "year" => format!("EVERY {interval} YEARS"),
+            "day" => format!("EVERY {interval} DAYS"),
+            _ => format!("EVERY {interval} MONTHS"),
+        }
+    };
+    cadence
+}
+
+fn schedule_value(
+    unit: &str,
+    interval: u16,
+    days: &[u8],
+    weekdays: &[u8],
+    dates: &[AnnualDate],
+) -> String {
+    const WEEKDAYS: [&str; 7] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    match unit {
+        "week" => {
+            let labels = weekdays
+                .iter()
+                .filter_map(|day| WEEKDAYS.get(usize::from(*day).saturating_sub(1)))
+                .copied()
+                .collect::<Vec<_>>();
+            if labels.is_empty() {
+                "Every week".to_string()
+            } else {
+                labels.join(" · ")
+            }
+        }
+        "year" => {
+            let labels = dates
+                .iter()
+                .map(|date| format!("{} {}", date.day, month_name(u32::from(date.month))))
+                .collect::<Vec<_>>();
+            if labels.is_empty() {
+                "Once a year".to_string()
+            } else {
+                labels.join(" · ")
+            }
+        }
+        "day" => format!(
+            "Every {interval} day{}",
+            if interval == 1 { "" } else { "s" }
+        ),
+        _ => {
+            let mut values = days.to_vec();
+            values.sort_unstable();
+            values.dedup();
+            if values.is_empty() {
+                "One day a month".to_string()
+            } else {
+                values
+                    .iter()
+                    .map(|day| {
+                        if *day == 0 {
+                            "Last day".to_string()
+                        } else {
+                            format!("Day {day}")
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join(" · ")
+            }
+        }
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum BillingMode {
     Full,
@@ -103,92 +181,164 @@ pub fn billing_schedule(props: BillingScheduleProps) -> impl IntoElement {
                             .text_color(move || theme().foreground),
                     )
                     .child(
-                        text(move || {
-                            let interval_value = interval.get();
-                            let unit_value = unit.get();
-                            let today = Local::now().date_naive();
-                            let selected = days.get();
-                            if unit_value == "month" && interval_value == "1" {
-                                let mut values = selected.clone();
-                                if values.is_empty() {
-                                    values.push(today.day() as u8);
-                                }
-                                values.sort_unstable();
-                                values.dedup();
-                                if values.len() == 1 {
-                                    format!(
-                                        "Charges monthly on day {}.",
-                                        values[0]
+                        text("Choose when it repeats and when the first charge happens.")
+                            .text_size(px(12.0))
+                            .line_height(px(18.0))
+                            .text_color(move || theme().muted_foreground),
+                    ),
+            )
+    )
+    .child(
+        view()
+            .w_full()
+            .flex_row()
+            .flex_wrap()
+            .gap(px(10.0))
+            .child(
+                view()
+                    .flex_grow(1.0)
+                    .basis(px(220.0))
+                    .min_w(px(0.0))
+                    .flex_row()
+                    .items_center()
+                    .gap(px(10.0))
+                    .p(px(12.0))
+                    .rounded(px(10.0))
+                    .border(px(1.0))
+                    .border_color(move || theme().primary.opacity(0.16))
+                    .bg(move || theme().primary.opacity(0.06))
+                    .child(
+                        view()
+                            .h(px(32.0))
+                            .w(px(32.0))
+                            .items_center()
+                            .justify_center()
+                            .rounded(px(8.0))
+                            .bg(move || theme().primary.opacity(0.12))
+                            .child(
+                                image(asset!("icons/calendar.svg"))
+                                    .size(px(16.0))
+                                    .tint_color(move || theme().primary),
+                            ),
+                    )
+                    .child(
+                        view()
+                            .flex_col()
+                            .min_w(px(0.0))
+                            .gap(px(2.0))
+                            .child(
+                                text(move || {
+                                    let interval = interval
+                                        .get()
+                                        .trim()
+                                        .parse::<u16>()
+                                        .unwrap_or(1)
+                                        .clamp(1, 100);
+                                    unit_caption(&unit.get(), interval)
+                                })
+                                .text_size(px(9.0))
+                                .letter_spacing(px(0.8))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(move || theme().muted_foreground),
+                            )
+                            .child(
+                                text(move || {
+                                    let interval = interval
+                                        .get()
+                                        .trim()
+                                        .parse::<u16>()
+                                        .unwrap_or(1)
+                                        .clamp(1, 100);
+                                    schedule_value(
+                                        &unit.get(),
+                                        interval,
+                                        &days.get(),
+                                        &weekdays.get(),
+                                        &annual_dates.get(),
                                     )
-                                } else {
-                                    let list = values
-                                        .iter()
-                                        .map(u8::to_string)
-                                        .collect::<Vec<_>>()
-                                        .join(", ");
-                                    format!("Charges monthly on days {list}.")
-                                }
-                            } else {
-                                format!(
-                                    "Charges every {interval_value} {unit_value}."
-                                )
-                            }
-                        })
-                        .text_size(px(12.0))
-                        .line_height(px(18.0))
-                        .text_color(move || theme().muted_foreground),
+                                })
+                                .text_size(px(16.0))
+                                .line_height(px(22.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(move || theme().foreground),
+                            ),
                     ),
             )
             .child(
                 view()
+                    .flex_grow(1.0)
+                    .basis(px(220.0))
+                    .min_w(px(0.0))
                     .flex_row()
                     .items_center()
-                    .gap(px(6.0))
-                    .px(px(10.0))
-                    .py(px(6.0))
-                    .rounded(px(999.0))
-                    .bg(move || theme().muted.opacity(0.5))
+                    .gap(px(10.0))
+                    .p(px(12.0))
+                    .rounded(px(10.0))
+                    .border(px(1.0))
+                    .border_color(move || theme().border.opacity(0.6))
+                    .bg(move || theme().muted.opacity(0.25))
                     .child(
-                        image(asset!("icons/clock.svg"))
-                            .size(px(12.0))
-                            .tint_color(move || theme().muted_foreground),
+                        view()
+                            .h(px(32.0))
+                            .w(px(32.0))
+                            .items_center()
+                            .justify_center()
+                            .rounded(px(8.0))
+                            .bg(move || theme().muted.opacity(0.6))
+                            .child(
+                                image(asset!("icons/clock.svg"))
+                                    .size(px(16.0))
+                                    .tint_color(move || theme().foreground),
+                            ),
                     )
                     .child(
-                        text(move || {
-                            let explicit = NaiveDate::parse_from_str(
-                                start_date.get().trim(),
-                                "%Y-%m-%d",
+                        view()
+                            .flex_col()
+                            .min_w(px(0.0))
+                            .gap(px(2.0))
+                            .child(
+                                text("FIRST CHARGE")
+                                    .text_size(px(9.0))
+                                    .letter_spacing(px(0.8))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_color(move || theme().muted_foreground),
                             )
-                            .ok();
-                            let today = Local::now().date_naive();
-                            let recurrence = Recurrence {
-                                interval: interval
-                                    .get()
-                                    .trim()
-                                    .parse::<u16>()
-                                    .unwrap_or(1)
-                                    .clamp(1, 100),
-                                unit: unit.get(),
-                                days: days.get(),
-                                weekdays: weekdays.get(),
-                                dates: annual_dates.get(),
-                            };
-                            let first = explicit.or_else(|| {
-                                next_occurrence_on_or_after(today, &recurrence, today, None)
-                            });
-                            first.map_or_else(
-                                || "First charge · —".to_string(),
-                                |date| {
-                                    format!(
-                                        "First charge · {}",
-                                        crate::format::format_date(date)
+                            .child(
+                                text(move || {
+                                    let explicit = NaiveDate::parse_from_str(
+                                        start_date.get().trim(),
+                                        "%Y-%m-%d",
                                     )
-                                },
-                            )
-                        })
-                        .text_size(px(11.0))
-                        .font_weight(FontWeight::MEDIUM)
-                        .text_color(move || theme().muted_foreground),
+                                    .ok();
+                                    let today = Local::now().date_naive();
+                                    let recurrence = Recurrence {
+                                        interval: interval
+                                            .get()
+                                            .trim()
+                                            .parse::<u16>()
+                                            .unwrap_or(1)
+                                            .clamp(1, 100),
+                                        unit: unit.get(),
+                                        days: days.get(),
+                                        weekdays: weekdays.get(),
+                                        dates: annual_dates.get(),
+                                    };
+                                    explicit
+                                        .or_else(|| {
+                                            next_occurrence_on_or_after(
+                                                today, &recurrence, today, None,
+                                            )
+                                        })
+                                        .map_or_else(
+                                            || "—".to_string(),
+                                            |date| crate::format::format_date(date),
+                                        )
+                                })
+                                .text_size(px(16.0))
+                                .line_height(px(22.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(move || theme().foreground),
+                            ),
                     ),
             ),
     )

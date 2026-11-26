@@ -1,3 +1,4 @@
+use crate::subscriptions::models::Recurrence;
 use chrono::{DateTime, NaiveDate, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -23,6 +24,7 @@ pub struct Debt {
     pub monthly_payment: Option<Decimal>,
     #[serde(default)]
     pub payment_days: Json<Vec<u8>>,
+    pub recurrence: Json<Recurrence>,
     pub start_date: NaiveDate,
     pub next_payment_date: Option<NaiveDate>,
     pub subscription_id: Option<Uuid>,
@@ -59,6 +61,7 @@ pub struct CreateDebtRequest {
     pub monthly_payment: Option<Decimal>,
     #[serde(default)]
     pub payment_days: Vec<u8>,
+    pub recurrence: Option<Recurrence>,
     #[serde(default)]
     pub first_payment: Option<NaiveDate>,
     #[serde(default)]
@@ -78,6 +81,7 @@ pub struct UpdateDebtRequest {
     pub monthly_payment: Option<Decimal>,
     #[serde(default)]
     pub payment_days: Option<Vec<u8>>,
+    pub recurrence: Option<Recurrence>,
     pub first_payment: Option<NaiveDate>,
     #[serde(default)]
     pub clear_first_payment: bool,
@@ -109,6 +113,7 @@ pub struct DebtResponse {
     pub debt_type: String,
     pub monthly_payment: Option<Decimal>,
     pub payment_days: Vec<u8>,
+    pub recurrence: Recurrence,
     pub start_date: NaiveDate,
     pub next_payment_date: Option<NaiveDate>,
     pub subscription_id: Option<Uuid>,
@@ -134,6 +139,7 @@ impl From<Debt> for DebtResponse {
             debt_type: debt.debt_type,
             monthly_payment: debt.monthly_payment,
             payment_days: debt.payment_days.0,
+            recurrence: debt.recurrence.0,
             start_date: debt.start_date,
             next_payment_date: debt.next_payment_date,
             subscription_id: debt.subscription_id,

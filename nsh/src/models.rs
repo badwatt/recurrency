@@ -128,6 +128,8 @@ pub struct Debt {
     pub monthly_payment: Option<Decimal>,
     #[serde(default)]
     pub payment_days: Vec<u8>,
+    #[serde(default)]
+    pub recurrence: Recurrence,
     pub start_date: NaiveDate,
     pub next_payment_date: Option<NaiveDate>,
     pub subscription_id: Option<Uuid>,

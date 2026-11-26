@@ -343,6 +343,7 @@ pub fn create_debt(req: &crate::debts::CreateDebtRequest) -> Result<Debt, String
         debt_type: req.debt_type.clone(),
         monthly_payment: req.monthly_payment,
         payment_days: req.payment_days.clone(),
+        recurrence: req.recurrence.clone().unwrap_or_default(),
         start_date: req.first_payment.or(req.start_date).unwrap_or_else(today),
         next_payment_date: req.first_payment,
         subscription_id: None,

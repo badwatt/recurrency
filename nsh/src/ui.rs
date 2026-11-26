@@ -555,22 +555,25 @@ pub fn top_bar(route: Signal<Route>, auth: AuthSession, compact: Signal<bool>) -
 }
 
 fn theme_action() -> impl IntoElement {
-    button()
+    view()
         .cursor_pointer()
-        .cursor_pointer()
+        .accessible(true)
         .items_center()
         .justify_center()
         .h(px(36.0))
         .w(px(36.0))
         .rounded(px(6.0))
-        .accessibility_label("Choose color theme")
-        .on_press(move || {
+        .on_press(move |event: &PressEvent| {
             if crate::ui::compact_active() {
                 open_menu(MenuPlacement::FullScreen, || {
                     crate::components::theme_picker::theme_fullscreen()
                 });
             } else {
-                open_menu(MenuPlacement::TopRight, || {
+                let page = event.page_position;
+                let local = event.position;
+                let top = page.y.0 - local.y.0 + 54.0;
+                let left = (page.x.0 - local.x.0 + 18.0 - 192.0).max(8.0);
+                open_menu(MenuPlacement::At { top, left }, || {
                     crate::components::theme_picker::theme_menu()
                 });
             }
