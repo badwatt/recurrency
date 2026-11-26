@@ -28,7 +28,7 @@ pub struct SelectMenuProps {
     pub selected: Signal<Option<Uuid>>,
     pub options: Rc<dyn Fn() -> Vec<SelectOption>>,
     pub height: f32,
-    pub create: Option<Rc<dyn Fn(String, Rc<dyn Fn()>)>>,
+    pub create: Option<Rc<dyn Fn(String, Rc<dyn Fn(Result<(), String>)>)>>,
     pub search_placeholder: String,
     pub create_title: String,
     pub show_label: bool,
@@ -61,7 +61,10 @@ impl SelectMenuProps {
         self
     }
 
-    pub fn create(mut self, create: impl Fn(String, Rc<dyn Fn()>) + 'static) -> Self {
+    pub fn create(
+        mut self,
+        create: impl Fn(String, Rc<dyn Fn(Result<(), String>)>) + 'static,
+    ) -> Self {
         self.create = Some(Rc::new(create));
         self
     }

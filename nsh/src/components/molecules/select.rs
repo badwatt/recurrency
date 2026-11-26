@@ -20,7 +20,7 @@ pub struct SelectProps {
     pub show_label: bool,
     pub height: f32,
     pub search_placeholder: String,
-    pub create: Option<Rc<dyn Fn(String, Rc<dyn Fn()>)>>,
+    pub create: Option<Rc<dyn Fn(String, Rc<dyn Fn(Result<(), String>)>)>>,
     pub create_title: String,
 }
 
@@ -79,7 +79,7 @@ impl SelectProps {
 
     pub fn create(
         mut self,
-        create: impl Fn(String, Rc<dyn Fn()>) + 'static,
+        create: impl Fn(String, Rc<dyn Fn(Result<(), String>)>) + 'static,
         title: impl Into<String>,
     ) -> Self {
         self.create = Some(Rc::new(create));
@@ -108,6 +108,10 @@ pub fn select(props: SelectProps) -> impl IntoElement {
     let open = signal(false);
     let query = signal(String::new());
     let panel_width = signal(320.0_f32);
+    let menu_origin = signal((0.0_f32, 0.0_f32));
+    let create_name = signal(String::new());
+    let create_error = signal(String::new());
+    let create_loading = signal(false);
     let select_id = crate::ui::next_select_id();
     let host = crate::ui::select_host();
     effect(move || {
@@ -118,6 +122,129 @@ pub fn select(props: SelectProps) -> impl IntoElement {
             open.set(false);
             query.set(String::new());
         }
+    });
+    let create_for_form = create.clone();
+    let create_title_for_form = create_title.clone();
+    let create_panel = Rc::new(move || {
+        let create_for_press = create_for_form.clone();
+        let title = create_title_for_form.clone();
+        view()
+            .w(move || px(panel_width.get()))
+            .flex_col()
+            .gap(px(10.0))
+            .p(px(12.0))
+            .rounded(px(8.0))
+            .border(px(1.0))
+            .border_color(move || theme().border)
+            .bg(move || theme().popover)
+            .child(
+                text(title.clone())
+                    .text_size(px(14.0))
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .text_color(move || theme().foreground),
+            )
+            .child(
+                input()
+                    .value(create_name)
+                    .on_change(move |value: &str| {
+                        create_name.set(value.to_string());
+                        create_error.set(String::new());
+                    })
+                    .placeholder(title)
+                    .auto_fill(AutoFill::Off)
+                    .auto_focus(true)
+                    .h(px(36.0))
+                    .w_full()
+                    .px(px(8.0))
+                    .rounded(px(6.0))
+                    .border(px(1.0))
+                    .border_color(move || theme().border)
+                    .bg(move || theme().background)
+                    .text_size(px(14.0))
+                    .text_color(move || theme().foreground),
+            )
+            .child(
+                when(
+                    move || !create_error.get().is_empty(),
+                    move || {
+                        text(move || create_error.get())
+                            .text_size(px(11.0))
+                            .text_color(move || theme().destructive)
+                            .into_element()
+                    },
+                )
+                .otherwise(|| view().h(px(0.0)).into_element()),
+            )
+            .child(
+                view()
+                    .w_full()
+                    .flex_row()
+                    .justify_end()
+                    .gap(px(8.0))
+                    .child(
+                        button()
+                            .cursor_pointer()
+                            .h(px(34.0))
+                            .px(px(12.0))
+                            .items_center()
+                            .justify_center()
+                            .rounded(px(6.0))
+                            .border(px(1.0))
+                            .border_color(move || theme().border)
+                            .on_press(crate::ui::close_menu)
+                            .child(
+                                text("Cancel")
+                                    .text_size(px(13.0))
+                                    .font_weight(FontWeight::MEDIUM)
+                                    .text_color(move || theme().foreground),
+                            ),
+                    )
+                    .child(
+                        button()
+                            .cursor_pointer()
+                            .h(px(34.0))
+                            .px(px(12.0))
+                            .items_center()
+                            .justify_center()
+                            .rounded(px(6.0))
+                            .bg(move || theme().primary)
+                            .on_press(move || {
+                                let name = create_name.get().trim().to_string();
+                                if name.is_empty() || create_loading.get() {
+                                    return;
+                                }
+                                let Some(create) = create_for_press.as_ref() else {
+                                    return;
+                                };
+                                create_loading.set(true);
+                                create_error.set(String::new());
+                                let done: Rc<dyn Fn(Result<(), String>)> = Rc::new(move |result| {
+                                    create_loading.set(false);
+                                    match result {
+                                        Ok(()) => {
+                                            create_name.set(String::new());
+                                            crate::ui::close_menu();
+                                        }
+                                        Err(message) => create_error.set(message),
+                                    }
+                                });
+                                create(name, done);
+                            })
+                            .child(
+                                text(move || {
+                                    if create_loading.get() {
+                                        "Creating..."
+                                    } else {
+                                        "Create"
+                                    }
+                                })
+                                .text_size(px(13.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(move || theme().primary_foreground),
+                            ),
+                    ),
+            )
+            .into_element()
     });
     let filter_options = options.clone();
     let filtered = Rc::new(move || {
@@ -144,8 +271,8 @@ pub fn select(props: SelectProps) -> impl IntoElement {
     let panel = Rc::new(move || {
         let placeholder_text = search_placeholder_for_panel.clone();
         let create_title_text = create_title_for_panel.clone();
-        let create_for_row = create_for_panel.clone();
-        let create_for_button = create_for_panel.clone();
+        let create_panel_for_submit = create_panel.clone();
+        let create_panel_for_row = create_panel.clone();
         let can_create_for_input = can_create.clone();
         let filtered_for_empty = filtered.clone();
         let filtered_for_rows = filtered.clone();
@@ -154,7 +281,7 @@ pub fn select(props: SelectProps) -> impl IntoElement {
         let empty_when = {
             let filtered = filtered_for_empty;
             let can_create = can_create.clone();
-            move || filtered().is_empty() && !(*can_create)()
+            move || (*filtered)().is_empty() && !(*can_create)()
         };
         let create_when = can_create.clone();
         view()
@@ -177,11 +304,16 @@ pub fn select(props: SelectProps) -> impl IntoElement {
                                 .value(query)
                                 .on_change(move |value: &str| query.set(value.to_string()))
                                 .on_submit(move |_: &str| {
-                                    if (*can_create_for_input)()
-                                        && let Some(create) = create_for_row.as_ref()
-                                    {
-                                        let close = std::rc::Rc::new(crate::ui::close_menu);
-                                        create(query.get(), close);
+                                    if (*can_create_for_input)() {
+                                        create_name.set(query.get());
+                                        create_error.set(String::new());
+                                        create_loading.set(false);
+                                        let (top, left) = menu_origin.get();
+                                        let panel_for_open = create_panel_for_submit.clone();
+                                        crate::ui::open_menu(
+                                            crate::ui::MenuPlacement::At { top, left },
+                                            move || (*panel_for_open)(),
+                                        );
                                     }
                                 })
                                 .placeholder(placeholder_text.clone())
@@ -263,7 +395,7 @@ pub fn select(props: SelectProps) -> impl IntoElement {
                 when(
                     move || (*create_when)(),
                     move || {
-                        let create_for_press = create_for_button.clone();
+                        let create_panel = create_panel_for_row.clone();
                         let title = create_title_text.clone();
                         button()
                             .cursor_pointer()
@@ -276,10 +408,15 @@ pub fn select(props: SelectProps) -> impl IntoElement {
                             .items_center()
                             .gap(px(6.0))
                             .on_press(move || {
-                                if let Some(create) = create_for_press.as_ref() {
-                                    let close = std::rc::Rc::new(crate::ui::close_menu);
-                                    create(query.get(), close);
-                                }
+                                create_name.set(query.get());
+                                create_error.set(String::new());
+                                create_loading.set(false);
+                                let (top, left) = menu_origin.get();
+                                let panel_for_open = create_panel.clone();
+                                crate::ui::open_menu(
+                                    crate::ui::MenuPlacement::At { top, left },
+                                    move || (*panel_for_open)(),
+                                );
                             })
                             .child(
                                 image(asset!("icons/plus.svg"))
@@ -339,13 +476,12 @@ pub fn select(props: SelectProps) -> impl IntoElement {
                     let panel_for_open = panel.clone();
                     let page = event.page_position;
                     let local = event.position;
-                    crate::ui::open_menu(
-                        crate::ui::MenuPlacement::At {
-                            top: page.y.0 - local.y.0 + height + 4.0,
-                            left: (page.x.0 - local.x.0).max(8.0),
-                        },
-                        move || (*panel_for_open)(),
-                    );
+                    let top = page.y.0 - local.y.0 + height + 4.0;
+                    let left = (page.x.0 - local.x.0).max(8.0);
+                    menu_origin.set((top, left));
+                    crate::ui::open_menu(crate::ui::MenuPlacement::At { top, left }, move || {
+                        (*panel_for_open)()
+                    });
                 })
                 .child(
                     text(move || {
