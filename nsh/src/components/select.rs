@@ -217,6 +217,7 @@ pub fn select(props: SelectProps) -> impl IntoElement {
                             .on_press(move || {
                                 on_select(value_for_press.clone());
                                 query.set(String::new());
+                                crate::ui::release_select(select_id);
                                 crate::ui::close_menu();
                             })
                             .child(
@@ -299,6 +300,7 @@ pub fn select(props: SelectProps) -> impl IntoElement {
                     },
                 )
                 .on_press(move |event: &PressEvent| {
+                    crate::ui::claim_select(select_id);
                     let panel_for_open = panel.clone();
                     let page = event.page_position;
                     let local = event.position;

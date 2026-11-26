@@ -5,7 +5,7 @@ use std::rc::Rc;
 use nsh_core::prelude::*;
 use uuid::Uuid;
 
-use crate::components::select::{SelectProps, select};
+use crate::components::select::SelectProps;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SelectOption {

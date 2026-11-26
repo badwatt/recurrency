@@ -690,9 +690,12 @@ fn upcoming_row(
         .gap(px(12.0))
         .rounded(px(8.0))
         .bg(move || {
-            if hovered.get() == Some(account_id)
-                || (show_categories.get() && hovered_category.get() == Some(category_id))
-            {
+            let linked = if show_categories.get() {
+                hovered_category.get() == Some(category_id)
+            } else {
+                hovered.get() == Some(account_id)
+            };
+            if linked {
                 theme().primary.opacity(0.05)
             } else {
                 theme().card
