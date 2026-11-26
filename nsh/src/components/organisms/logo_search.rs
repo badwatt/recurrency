@@ -125,15 +125,20 @@ pub fn logo_search(
                         .flex_wrap()
                         .items_center()
                         .gap(px(8.0))
-                        .when(!logo_url.get().trim().is_empty(), move |row| {
-                            row.child(
-                                image(logo_url.get())
-                                    .size(px(40.0))
-                                    .rounded(px(8.0))
-                                    .border(px(1.0))
-                                    .border_color(move || theme().border),
+                        .child(
+                            when(
+                                move || !logo_url.get().trim().is_empty(),
+                                move || {
+                                    image(logo_url.get())
+                                        .size(px(40.0))
+                                        .rounded(px(8.0))
+                                        .border(px(1.0))
+                                        .border_color(move || theme().border)
+                                        .into_element()
+                                },
                             )
-                        })
+                            .otherwise(|| view().h(px(0.0)).into_element()),
+                        )
                         .child(crate::components::button::button(
                             crate::components::button::ButtonProps::new(
                                 if logo_url.get().trim().is_empty() {
@@ -152,14 +157,23 @@ pub fn logo_search(
                                 .size(crate::components::button::ButtonSize::Sm)
                                 .on_press(upload),
                         ))
-                        .when(!logo_url.get().trim().is_empty(), move |row| {
-                            row.child(crate::components::button::button(
-                                crate::components::button::ButtonProps::new("Remove")
-                                    .variant(crate::components::button::ButtonVariant::Outline)
-                                    .size(crate::components::button::ButtonSize::Sm)
-                                    .on_press(remove),
-                            ))
-                        }),
+                        .child(
+                            when(
+                                move || !logo_url.get().trim().is_empty(),
+                                move || {
+                                    crate::components::button::button(
+                                        crate::components::button::ButtonProps::new("Remove")
+                                            .variant(
+                                                crate::components::button::ButtonVariant::Outline,
+                                            )
+                                            .size(crate::components::button::ButtonSize::Sm)
+                                            .on_press(remove),
+                                    )
+                                    .into_element()
+                                },
+                            )
+                            .otherwise(|| view().h(px(0.0)).into_element()),
+                        ),
                 ),
         )
         .child(
