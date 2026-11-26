@@ -823,7 +823,16 @@ fn content(
         .gap(px(16.0))
         .child(each(
             groups,
-            move |group| format!("{}-{}-{}", group.key, sort_field.get(), sort_desc.get()),
+            move |group| {
+                format!(
+                    "{}-{}-{}-{}-{}",
+                    group.key,
+                    group.items.len(),
+                    group.total,
+                    sort_field.get(),
+                    sort_desc.get()
+                )
+            },
             move |group, _| {
                 group_card(
                     group.get(),
@@ -1910,6 +1919,13 @@ mod tests {
         assert_eq!(filter_transactions(&items, &accounts, "groc").len(), 1);
         assert_eq!(filter_transactions(&items, &accounts, "every").len(), 1);
         assert_eq!(filter_transactions(&items, &accounts, "").len(), 2);
+    }
+
+    #[test]
+    fn transaction_group_keys_track_the_group_contents() {
+        let source = include_str!("transactions.rs");
+        assert!(source.contains("group.items.len()"));
+        assert!(source.contains("group.total"));
     }
 
     #[test]
