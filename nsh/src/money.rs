@@ -1080,14 +1080,12 @@ fn build_items(
             };
             let account_row = data.accounts.iter().find(|a| a.id == sub.account_id);
             let account = account_row.map_or_else(String::new, |a| a.name.clone());
-            let color = account_row
-                .and_then(|a| a.color.clone())
-                .or_else(|| {
-                    data.categories
-                        .iter()
-                        .find(|c| c.id == sub.category_id)
-                        .and_then(|c| c.color.clone())
-                })
+            let color = data
+                .categories
+                .iter()
+                .find(|c| c.id == sub.category_id)
+                .and_then(|c| c.color.clone())
+                .or_else(|| account_row.and_then(|a| a.color.clone()))
                 .unwrap_or_else(|| "#6b7280".to_string());
             let category = data
                 .categories
@@ -1118,14 +1116,12 @@ fn build_items(
         for tx in data.transactions {
             let account_row = data.accounts.iter().find(|a| a.id == tx.account_id);
             let account = account_row.map_or_else(String::new, |a| a.name.clone());
-            let color = account_row
-                .and_then(|a| a.color.clone())
-                .or_else(|| {
-                    data.categories
-                        .iter()
-                        .find(|c| c.id == tx.category_id)
-                        .and_then(|c| c.color.clone())
-                })
+            let color = data
+                .categories
+                .iter()
+                .find(|c| c.id == tx.category_id)
+                .and_then(|c| c.color.clone())
+                .or_else(|| account_row.and_then(|a| a.color.clone()))
                 .unwrap_or_else(|| "#6b7280".to_string());
             let category = data
                 .categories
@@ -1152,14 +1148,12 @@ fn build_items(
         for debt in data.debts {
             let account_row = data.accounts.iter().find(|a| a.id == debt.account_id);
             let account = account_row.map_or_else(String::new, |a| a.name.clone());
-            let color = account_row
-                .and_then(|a| a.color.clone())
-                .or_else(|| {
-                    data.categories
-                        .iter()
-                        .find(|c| c.id == debt.category_id)
-                        .and_then(|c| c.color.clone())
-                })
+            let color = data
+                .categories
+                .iter()
+                .find(|c| c.id == debt.category_id)
+                .and_then(|c| c.color.clone())
+                .or_else(|| account_row.and_then(|a| a.color.clone()))
                 .unwrap_or_else(|| "#6b7280".to_string());
             let category = data
                 .categories
