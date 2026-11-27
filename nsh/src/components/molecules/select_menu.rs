@@ -125,14 +125,21 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
         label,
         placeholder,
         move || {
-            let current = selected.get();
+            let Some(current) = selected.try_get() else {
+                return String::new();
+            };
             label_options()
                 .into_iter()
                 .find(|option| Some(option.value) == current)
                 .map_or_else(String::new, |option| option.label.clone())
         },
-        move || selected.get().map_or_else(String::new, |id| id.to_string()),
-        move || selected.get().is_some(),
+        move || {
+            selected
+                .try_get()
+                .flatten()
+                .map_or_else(String::new, |id| id.to_string())
+        },
+        move || selected.try_get().flatten().is_some(),
         move || {
             panel_options()
                 .into_iter()
@@ -141,7 +148,7 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
         },
         move |value| {
             if let Ok(id) = Uuid::parse_str(&value) {
-                selected.set(Some(id));
+                let _ = selected.try_set(Some(id));
             }
         },
     )
@@ -151,7 +158,9 @@ pub fn select_menu(props: SelectMenuProps) -> impl IntoElement {
     .create_icon(create_icon)
     .create_color(create_color)
     .search_placeholder(search_placeholder)
-    .clearable(move || selected.set(None));
+    .clearable(move || {
+        let _ = selected.try_set(None);
+    });
     if let Some(create) = create {
         props = props.create(
             move |name, icon, color, done| create(name, icon, color, done),
@@ -168,5 +177,18 @@ mod tests {
         let source = include_str!("select_menu.rs");
         assert!(source.contains("SelectProps::new"));
         assert!(source.contains("clearable"));
+    }
+
+    #[test]
+    fn select_menu_survives_a_disposed_signal() {
+        // The panel may outlive the dialog that made it: reads and writes go
+        // through `try_get`/`try_set` so a closed form cannot panic.
+        let source = include_str!("select_menu.rs");
+        let get = format!("selected.{}()", "get");
+        let set = format!("selected.{}(", "set");
+        assert!(!source.contains(&get));
+        assert!(!source.contains(&set));
+        assert!(source.contains("try_get"));
+        assert!(source.contains("try_set"));
     }
 }

@@ -822,7 +822,6 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
             when(
                 move || bulk.get(),
                 move || {
-                    let count = selected.get().len();
                     let all = items();
                     view()
                         .w_full()
@@ -836,7 +835,7 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
                         .border_color(move || theme().primary.opacity(0.4))
                         .bg(move || theme().primary.opacity(0.06))
                         .child(
-                            text(format!("{count} selected"))
+                            text(move || format!("{} selected", selected.get().len()))
                                 .text_size(px(12.0))
                                 .font_weight(FontWeight::SEMIBOLD)
                                 .text_color(move || theme().foreground),
@@ -847,6 +846,14 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
                         .child(crate::ui::action_button("Clear", false, move || {
                             selected.set(Vec::new())
                         }))
+                        .child(bulk_actions_menu(
+                            server_signal,
+                            token_signal,
+                            selected,
+                            subscriptions,
+                            transactions,
+                            debts,
+                        ))
                         .child(crate::ui::action_button("Delete", true, {
                             let server = server_signal;
                             let token = token_signal;
@@ -943,7 +950,9 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
                         let base_currency = branch_currency.clone();
                         let item_currency = stored(base_currency.clone());
                         let item_rates = stored(base_rates.clone());
-                        when(list_view.get(), {
+                        when(
+                            move || list_view.get(),
+                            {
                             move || {
                                 view()
                                     .w_full()
@@ -983,6 +992,105 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
                     .into_element()
                 })
             }),
+        )
+        .into_element()
+}
+
+/// Bulk actions for the shared money screen: the same patch applied to every
+/// selected subscription or budget. One-off payments and debts have no state
+/// to toggle, so they are left untouched.
+fn bulk_actions_menu(
+    server: Signal<String>,
+    token: Signal<String>,
+    selected: Signal<Vec<(Kind, Uuid)>>,
+    subscriptions: Resource<api::SubscriptionsData, String>,
+    transactions: Resource<api::TransactionsData, String>,
+    debts: Resource<api::DebtsData, String>,
+) -> AnyElement {
+    let apply = std::rc::Rc::new(move |active: bool| {
+        let values = selected.get();
+        if values.is_empty() {
+            return;
+        }
+        let server = server.get();
+        let token = token.get();
+        spawn(async move {
+            for (kind, id) in values {
+                if matches!(kind, Kind::Subscription | Kind::Budget) {
+                    let _ = api::update_subscription(
+                        server.clone(),
+                        token.clone(),
+                        id,
+                        &serde_json::json!({ "is_active": active }),
+                    )
+                    .await;
+                }
+            }
+            selected.set(Vec::new());
+            subscriptions.refetch();
+            transactions.refetch();
+            debts.refetch();
+            ui::bump_data();
+        });
+    });
+    let panel = {
+        let apply = apply.clone();
+        move || {
+            let activate = apply.clone();
+            let deactivate = apply.clone();
+            card()
+                .w(px(190.0))
+                .p(px(8.0))
+                .gap(px(2.0))
+                .bg(move || theme().popover)
+                .child(
+                    text("Bulk actions")
+                        .text_size(px(10.0))
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(move || theme().muted_foreground),
+                )
+                .child(crate::ui::action_button("Mark active", false, move || {
+                    activate(true);
+                    crate::ui::close_menu();
+                }))
+                .child(crate::ui::action_button("Mark inactive", false, move || {
+                    deactivate(false);
+                    crate::ui::close_menu();
+                }))
+                .into_element()
+        }
+    };
+    view()
+        .relative()
+        .z_index(120)
+        .child(
+            view()
+                .cursor_pointer()
+                .h(px(28.0))
+                .px(px(10.0))
+                .items_center()
+                .justify_center()
+                .rounded(px(6.0))
+                .border(px(1.0))
+                .border_color(move || theme().border)
+                .bg(move || theme().card)
+                .on_press(move |event: &PressEvent| {
+                    let page = event.page_position;
+                    let local = event.position;
+                    crate::ui::open_menu(
+                        crate::ui::MenuPlacement::At {
+                            top: page.y.0 - local.y.0 + 32.0,
+                            left: (page.x.0 - 95.0).max(8.0),
+                        },
+                        panel.clone(),
+                    );
+                })
+                .child(
+                    text("Bulk actions")
+                        .text_size(px(12.0))
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(move || theme().foreground),
+                ),
         )
         .into_element()
 }
@@ -1228,6 +1336,12 @@ fn type_badge(kind: Kind) -> AnyElement {
         .into_element()
 }
 
+/// Cards share the row (2 columns from 620, 3 from 900, 4 from 1200) instead of
+/// stacking when a fixed 360 px would not fit next to its neighbour.
+const GRID_CARD_BASIS: f32 = 290.0;
+const GRID_CARD_MIN: f32 = 260.0;
+const GRID_CARD_MAX: f32 = 420.0;
+
 fn grid_card(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyElement {
     let item_id = item.id;
     let logo = item.logo.clone();
@@ -1238,8 +1352,11 @@ fn grid_card(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyEle
     let progress = item.progress;
     let card_color = item.color.clone();
     card()
-        .w(px(360.0))
-        .flex_shrink_0()
+        .basis(px(GRID_CARD_BASIS))
+        .flex_grow(1.0)
+        .flex_shrink(1.0)
+        .min_w(px(GRID_CARD_MIN))
+        .max_w(px(GRID_CARD_MAX))
         .p(px(18.0))
         .gap(px(12.0))
         .cursor_pointer()

@@ -19,16 +19,20 @@ pub fn compact_select(
             "",
             "Select...",
             move || {
-                let current = value.get();
+                let Some(current) = value.try_get() else {
+                    return String::new();
+                };
                 label_options
                     .iter()
                     .find(|(option, _)| *option == current)
                     .map_or_else(|| current.clone(), |(_, label)| label.clone())
             },
-            move || value.get(),
-            move || !value.get().is_empty(),
+            move || value.try_get().unwrap_or_default(),
+            move || value.try_get().is_some_and(|next| !next.is_empty()),
             move || (*panel_options).clone(),
-            move |next| value.set(next),
+            move |next| {
+                let _ = value.try_set(next);
+            },
         )
         .searchable(false)
         .show_label(false)

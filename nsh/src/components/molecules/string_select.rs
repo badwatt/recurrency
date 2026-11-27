@@ -48,16 +48,20 @@ pub fn string_select(props: StringSelectProps) -> impl IntoElement {
             label,
             "Select...",
             move || {
-                let current = selected.get();
+                let Some(current) = selected.try_get() else {
+                    return String::new();
+                };
                 label_options
                     .iter()
                     .find(|(value, _)| *value == current)
                     .map_or_else(|| current.clone(), |(_, label)| label.clone())
             },
-            move || selected.get(),
-            move || !selected.get().is_empty(),
+            move || selected.try_get().unwrap_or_default(),
+            move || selected.try_get().is_some_and(|value| !value.is_empty()),
             move || (*panel_options).clone(),
-            move |value| selected.set(value),
+            move |value| {
+                let _ = selected.try_set(value);
+            },
         )
         .searchable(true)
         .show_label(show_label)
