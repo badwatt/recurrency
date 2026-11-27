@@ -338,7 +338,7 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
                                 .otherwise(move || {
                                     when(
                                         move || route.get() == Route::Money,
-                                        move || money::money(auth_signal.get(), modal, route, compact),
+                                        move || money::money(auth_signal.get(), modal, compact),
                                     )
                                     .otherwise(move || {
                                         when(
@@ -447,6 +447,18 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
                                 "New subscription",
                                 asset!("icons/receipt.svg"),
                                 move || ui::create_subscription(None),
+                            ),
+                            crate::components::fab_menu::FabAction::new(
+                                "New budget",
+                                asset!("icons/wallet.svg"),
+                                move || {
+                                    crate::subscriptions::open_create_dialog_kind(
+                                        auth_signal.get(),
+                                        modal,
+                                        None,
+                                        "budget",
+                                    )
+                                },
                             ),
                             crate::components::fab_menu::FabAction::new(
                                 "New transaction",

@@ -115,7 +115,6 @@ struct Item {
 pub fn money(
     auth: AuthSession,
     modal: ui::ModalHost,
-    route: Signal<crate::Route>,
     compact: Signal<bool>,
 ) -> AnyElement {
     let server = crate::auth::stored_server();
@@ -125,6 +124,8 @@ pub fn money(
     } else {
         auth.user.currency.clone()
     };
+    let server_signal = signal(server.clone());
+    let token_signal = signal(token.clone());
     let subscriptions = resource(|| Some(ui::data_revision()), {
         let server = server.clone();
         let token = token.clone();
@@ -185,17 +186,65 @@ pub fn money(
         let auth = auth.clone();
         move || open_money_add(auth.clone(), modal)
     };
-    let edit_route = {
-        move |kind: Kind, _id: Uuid| {
-            route.set(match kind {
-                Kind::Subscription | Kind::Budget => crate::Route::Subscriptions,
-                Kind::Transaction => crate::Route::Transactions,
-                Kind::Debt => crate::Route::Debts,
-            });
+    let edit_action = {
+        let edit_currency = currency.clone();
+        move |kind: Kind, id: Uuid| match kind {
+            Kind::Subscription | Kind::Budget => {
+                if let Some(subscription) = subscriptions
+                    .get()
+                    .unwrap_or_default()
+                    .subscriptions
+                    .into_iter()
+                    .find(|item| item.id == id)
+                {
+                    crate::subscriptions::open_edit_dialog(
+                        subscriptions,
+                        subscription,
+                        server_signal,
+                        token_signal,
+                        modal,
+                    );
+                }
+            }
+            Kind::Transaction => {
+                if let Some(transaction) = transactions
+                    .get()
+                    .unwrap_or_default()
+                    .transactions
+                    .into_iter()
+                    .find(|item| item.id == id)
+                {
+                    crate::transactions::open_edit_dialog(
+                        transactions,
+                        transaction,
+                        server_signal,
+                        token_signal,
+                        edit_currency.clone(),
+                        modal,
+                    );
+                }
+            }
+            Kind::Debt => {
+                if let Some(debt) = debts
+                    .get()
+                    .unwrap_or_default()
+                    .debts
+                    .into_iter()
+                    .find(|item| item.id == id)
+                {
+                    crate::debts::open_edit_dialog(
+                        debts,
+                        debt,
+                        server_signal,
+                        token_signal,
+                        edit_currency.clone(),
+                        modal,
+                    );
+                }
+            }
         }
     };
-    let edit_route: std::rc::Rc<dyn Fn(Kind, Uuid)> = std::rc::Rc::new(edit_route);
-    let delete_item = {
+    let edit_action: std::rc::Rc<dyn Fn(Kind, Uuid)> = std::rc::Rc::new(edit_action);    let delete_item = {
         let server = server.clone();
         let token = token.clone();
         move |kind: Kind, id: Uuid| {
@@ -247,7 +296,7 @@ pub fn money(
         }
     };
     let delete_item: std::rc::Rc<dyn Fn(Kind, Uuid)> = std::rc::Rc::new(delete_item);
-    set_money_actions(edit_route.clone(), delete_item.clone());
+    set_money_actions(edit_action.clone(), delete_item.clone());
     view()
         .w_full()
         .flex_col()

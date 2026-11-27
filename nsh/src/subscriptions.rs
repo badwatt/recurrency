@@ -488,6 +488,50 @@ fn open_edit_subscription(
     modal.open(move || form(data, form_signals, server, token, modal).into_element());
 }
 
+/// Open the edit form over any page, with its own data resource.
+pub fn open_edit_dialog(
+    data: Resource<SubscriptionsData, String>,
+    subscription: Subscription,
+    server: Signal<String>,
+    token: Signal<String>,
+    modal: ui::ModalHost,
+) {
+    let recurrence = subscription.recurrence.clone();
+    let days = if recurrence.unit == "year" {
+        recurrence.dates.iter().map(|date| date.day).collect::<Vec<_>>()
+    } else if recurrence.days.is_empty() {
+        vec![subscription.start_date.day() as u8; 1]
+    } else {
+        recurrence.days.clone()
+    };
+    let form_signals = FormSignals {
+        open: signal(true),
+        editing: signal(Some(subscription.id)),
+        name: signal(subscription.name.clone()),
+        amount: signal(subscription.amount.to_string()),
+        start_date: signal(subscription.start_date.to_string()),
+        end_date: signal(subscription.end_date.map(|date| date.to_string()).unwrap_or_default()),
+        currency: signal(subscription.currency.clone()),
+        interval: signal(recurrence.interval.max(1).to_string()),
+        kind: signal(subscription.kind.clone()),
+        days: signal(days),
+        weekdays: signal(recurrence.weekdays.clone()),
+        annual_dates: signal(recurrence.dates.clone()),
+        unit: signal(recurrence.unit.clone()),
+        account_id: signal(Some(subscription.account_id)),
+        category_id: signal(Some(subscription.category_id)),
+        error: signal(String::new()),
+        saving: signal(false),
+        active: signal(subscription.is_active),
+        notes: signal(subscription.notes.clone().unwrap_or_default()),
+        logo_url: signal(subscription.logo_url.clone().unwrap_or_default()),
+        logo_results: signal(Vec::new()),
+        logo_loading: signal(false),
+        logo_error: signal(String::new()),
+    };
+    modal.open(move || form(data, form_signals, server, token, modal).into_element());
+}
+
 /// Opens the full subscription form over whichever page requested it.
 pub fn open_create_dialog(auth: AuthSession, modal: ui::ModalHost, date: Option<NaiveDate>) {
     open_create_dialog_kind(auth, modal, date, "subscription");

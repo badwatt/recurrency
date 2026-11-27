@@ -832,6 +832,44 @@ pub fn open_create_dialog(auth: AuthSession, modal: ui::ModalHost, date: Option<
     });
 }
 
+/// Open the debt edit form from any page.
+pub fn open_edit_dialog(
+    data: Resource<DebtsData, String>,
+    debt: Debt,
+    server: Signal<String>,
+    token: Signal<String>,
+    currency: String,
+    modal: ui::ModalHost,
+) {
+    let form_signals = DebtForm {
+        open: signal(true),
+        editing: signal(Some(debt.id)),
+        name: signal(debt.name.clone()),
+        total: signal(debt.total_amount.to_string()),
+        monthly: signal(
+            debt.monthly_payment
+                .map_or_else(String::new, |value| value.to_string()),
+        ),
+        start_date: signal(debt.start_date.to_string()),
+        debt_type: signal(debt.debt_type.clone()),
+        payment_days: signal(debt.payment_days.clone()),
+        interval: signal(debt.recurrence.interval.max(1).to_string()),
+        unit: signal(debt.recurrence.unit.clone()),
+        weekdays: signal(debt.recurrence.weekdays.clone()),
+        annual_dates: signal(debt.recurrence.dates.clone()),
+        currency: signal(debt.currency.clone()),
+        notes: signal(debt.notes.clone().unwrap_or_default()),
+        logo_url: signal(debt.logo_url.clone().unwrap_or_default()),
+        account_id: signal(Some(debt.account_id)),
+        category_id: signal(Some(debt.category_id)),
+        error: signal(String::new()),
+        saving: signal(false),
+    };
+    modal.open(move || {
+        form(data, form_signals, server, token, currency.clone(), modal).into_element()
+    });
+}
+
 fn form(
     data: Resource<DebtsData, String>,
     form: DebtForm,

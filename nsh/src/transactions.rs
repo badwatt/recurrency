@@ -386,6 +386,37 @@ pub fn open_create_dialog(auth: AuthSession, modal: ui::ModalHost, date: Option<
     });
 }
 
+/// Open the transaction edit form from any page.
+pub fn open_edit_dialog(
+    data: Resource<TransactionsData, String>,
+    transaction: Transaction,
+    server: Signal<String>,
+    token: Signal<String>,
+    currency: String,
+    modal: ui::ModalHost,
+) {
+    let form_signals = TxForm {
+        open: signal(true),
+        editing: signal(Some(transaction.id)),
+        name: signal(transaction.name.clone()),
+        amount: signal(transaction.amount.to_string()),
+        currency: signal(transaction.currency.clone()),
+        date: signal(transaction.date.to_string()),
+        account_id: signal(Some(transaction.account_id)),
+        category_id: signal(Some(transaction.category_id)),
+        error: signal(String::new()),
+        saving: signal(false),
+        notes: signal(transaction.notes.clone().unwrap_or_default()),
+        logo_url: signal(transaction.logo_url.clone().unwrap_or_default()),
+        logo_results: signal(Vec::new()),
+        logo_loading: signal(false),
+        logo_error: signal(String::new()),
+    };
+    modal.open(move || {
+        form(data, form_signals, server, token, currency.clone(), modal).into_element()
+    });
+}
+
 fn form(
     data: Resource<TransactionsData, String>,
     form: TxForm,
