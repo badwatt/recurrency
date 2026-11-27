@@ -211,6 +211,12 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
         let auth = creator_auth.clone();
         move |date| crate::subscriptions::open_create_dialog(auth.clone(), modal, date)
     });
+    ui::init_budget_creator({
+        let auth = creator_auth.clone();
+        move |date| {
+            crate::subscriptions::open_create_dialog_kind(auth.clone(), modal, date, "budget")
+        }
+    });
     ui::init_transaction_creator({
         let auth = creator_auth.clone();
         move |date| crate::transactions::open_create_dialog(auth.clone(), modal, date)

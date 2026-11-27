@@ -540,6 +540,25 @@ fn form(
     } else {
         "Add Transaction"
     };
+    let title_element = crate::components::money_title::money_title(
+        if editing.get().is_some() { "Edit" } else { "Add" },
+        || "One-off payment".to_string(),
+        move |next| match next {
+            "subscription" => {
+                modal.close();
+                crate::ui::create_subscription(None);
+            }
+            "budget" => {
+                modal.close();
+                crate::ui::create_budget(None);
+            }
+            "debt" => {
+                modal.close();
+                crate::ui::create_debt(None);
+            }
+            _ => {}
+        },
+    );
     let subtitle = "";
     let modal_for_close = modal;
     crate::components::dialog::dialog(
@@ -548,6 +567,7 @@ fn form(
             editing.set(None);
             modal_for_close.close();
         })
+        .title_element(title_element)
         .width(720.0)
         .body(
             view()

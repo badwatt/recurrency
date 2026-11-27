@@ -7,6 +7,7 @@ pub mod dropdown_menu;
 pub mod fab_menu;
 pub mod filter_menu;
 pub mod logo_search;
+pub mod money_title;
 pub mod page_header;
 pub mod sort_menu;
 pub mod theme_picker;

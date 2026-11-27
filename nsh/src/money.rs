@@ -15,7 +15,7 @@ use crate::components::search_input::search_input;
 use crate::format::format_date;
 use crate::ui;
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Kind {
     Subscription,
     Budget,
@@ -169,7 +169,7 @@ impl Filter {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 struct Item {
     id: Uuid,
     kind: Kind,
@@ -177,6 +177,7 @@ struct Item {
     amount: Decimal,
     currency: String,
     logo: Option<String>,
+    color: String,
     account: String,
     category: String,
     detail: String,
@@ -255,6 +256,12 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
     let open_add = {
         let auth = auth.clone();
         move || open_money_add(auth.clone(), modal)
+    };
+    let open_filtered = move || match filter.get() {
+        Filter::Budget => crate::ui::create_budget(None),
+        Filter::Transaction => crate::ui::create_transaction(None),
+        Filter::Debt => crate::ui::create_debt(None),
+        Filter::All | Filter::Subscription => crate::ui::create_subscription(None),
     };
     let edit_action = {
         let edit_currency = currency.clone();
@@ -679,7 +686,12 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
                             move || list_view.get(),
                             move || list_view.set(true),
                         )),
-                ),
+                )
+                .child(crate::components::button::button(
+                    crate::components::button::ButtonProps::new("Add")
+                        .icon(asset!("icons/plus.svg"))
+                        .on_press(open_add.clone()),
+                )),
         )
         .child(chips(filter, items.clone()))
         .child(
@@ -790,7 +802,7 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
                                 crate::components::button::button(
                                     crate::components::button::ButtonProps::new("Add")
                                         .icon(asset!("icons/plus.svg"))
-                                        .on_press(move || crate::ui::create_subscription(None)),
+                                        .on_press(open_filtered),
                                 )
                                 .into_element(),
                             )
@@ -805,37 +817,41 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
                             .or_else(|| debts.get().map(|data| data.rates))
                             .unwrap_or_default();
                         let base_currency = branch_currency.clone();
+                        let item_currency = stored(base_currency.clone());
+                        let item_rates = stored(base_rates.clone());
                         when(list_view.get(), {
-                            let rates = base_rates.clone();
-                            let currency = base_currency.clone();
                             move || {
                                 view()
                                     .w_full()
                                     .flex_col()
                                     .gap(px(8.0))
-                                    .children(
-                                        items()
-                                            .into_iter()
-                                            .map(|item| list_row(item, &currency, &rates)),
-                                    )
+                                    .child(each(
+                                        items,
+                                        |item| format!("{}-{}-{}-{}", item.kind.label(), item.id, item.updated, item.color),
+                                        move |item, _| {
+                                            let currency = item_currency.with(|value| value.clone());
+                                            let rates = item_rates.with(|value| value.clone());
+                                            list_row(item.get(), &currency, &rates)
+                                        },
+                                    ))
                                     .into_element()
                             }
                         })
                         .otherwise(move || {
                             view()
                                 .w_full()
-                                .grid()
-                                .grid_template_columns(SharedString::from(if compact.get() {
-                                    "repeat(1, minmax(0, 1fr))"
-                                } else {
-                                    "repeat(3, minmax(0, 1fr))"
-                                }))
+                                .flex_row()
+                                .flex_wrap()
                                 .gap(px(16.0))
-                                .children(
-                                    items()
-                                        .into_iter()
-                                        .map(|item| grid_card(item, &base_currency, &base_rates)),
-                                )
+                                .child(each(
+                                    items,
+                                    |item| format!("{}-{}-{}-{}", item.kind.label(), item.id, item.updated, item.color),
+                                    move |item, _| {
+                                        let currency = item_currency.with(|value| value.clone());
+                                        let rates = item_rates.with(|value| value.clone());
+                                        grid_card(item.get(), &currency, &rates)
+                                    },
+                                ))
                                 .into_element()
                         })
                         .into_element()
@@ -938,11 +954,17 @@ fn build_items(
             } else {
                 Kind::Subscription
             };
-            let account = data
-                .accounts
-                .iter()
-                .find(|a| a.id == sub.account_id)
-                .map_or_else(String::new, |a| a.name.clone());
+            let account_row = data.accounts.iter().find(|a| a.id == sub.account_id);
+            let account = account_row.map_or_else(String::new, |a| a.name.clone());
+            let color = account_row
+                .and_then(|a| a.color.clone())
+                .or_else(|| {
+                    data.categories
+                        .iter()
+                        .find(|c| c.id == sub.category_id)
+                        .and_then(|c| c.color.clone())
+                })
+                .unwrap_or_else(|| "#6b7280".to_string());
             let category = data
                 .categories
                 .iter()
@@ -959,6 +981,7 @@ fn build_items(
                 amount: sub.amount,
                 currency: sub.currency,
                 logo: sub.logo_url,
+                color,
                 account,
                 category,
                 detail,
@@ -969,11 +992,17 @@ fn build_items(
     }
     if let Some(data) = transactions.get() {
         for tx in data.transactions {
-            let account = data
-                .accounts
-                .iter()
-                .find(|a| a.id == tx.account_id)
-                .map_or_else(String::new, |a| a.name.clone());
+            let account_row = data.accounts.iter().find(|a| a.id == tx.account_id);
+            let account = account_row.map_or_else(String::new, |a| a.name.clone());
+            let color = account_row
+                .and_then(|a| a.color.clone())
+                .or_else(|| {
+                    data.categories
+                        .iter()
+                        .find(|c| c.id == tx.category_id)
+                        .and_then(|c| c.color.clone())
+                })
+                .unwrap_or_else(|| "#6b7280".to_string());
             let category = data
                 .categories
                 .iter()
@@ -986,6 +1015,7 @@ fn build_items(
                 amount: tx.amount,
                 currency: tx.currency,
                 logo: tx.logo_url,
+                color,
                 account,
                 category,
                 detail: format_date(tx.date),
@@ -996,11 +1026,17 @@ fn build_items(
     }
     if let Some(data) = debts.get() {
         for debt in data.debts {
-            let account = data
-                .accounts
-                .iter()
-                .find(|a| a.id == debt.account_id)
-                .map_or_else(String::new, |a| a.name.clone());
+            let account_row = data.accounts.iter().find(|a| a.id == debt.account_id);
+            let account = account_row.map_or_else(String::new, |a| a.name.clone());
+            let color = account_row
+                .and_then(|a| a.color.clone())
+                .or_else(|| {
+                    data.categories
+                        .iter()
+                        .find(|c| c.id == debt.category_id)
+                        .and_then(|c| c.color.clone())
+                })
+                .unwrap_or_else(|| "#6b7280".to_string());
             let category = data
                 .categories
                 .iter()
@@ -1022,6 +1058,7 @@ fn build_items(
                 amount: debt.remaining_amount,
                 currency: debt.currency,
                 logo: debt.logo_url,
+                color,
                 account,
                 category,
                 detail: debt.next_payment_date.map_or_else(
@@ -1081,11 +1118,14 @@ fn grid_card(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyEle
     let account = item.account.clone();
     let kind = item.kind;
     let progress = item.progress;
+    let card_color = item.color.clone();
     card()
-        .w_full()
+        .w(px(360.0))
+        .flex_shrink_0()
         .p(px(18.0))
         .gap(px(12.0))
         .cursor_pointer()
+        .bg(move || rgba((crate::theme::parse_hex(&card_color) << 8) | 0x12))
         .border_color(move || {
             if money_is_selected(kind, item_id) {
                 theme().primary
@@ -1210,6 +1250,7 @@ fn list_row(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyElem
     let detail = item.detail.clone();
     let kind = item.kind;
     let progress = item.progress;
+    let card_color = item.color.clone();
     view()
         .w_full()
         .rounded(px(12.0))
@@ -1222,7 +1263,7 @@ fn list_row(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyElem
                 theme().border
             }
         })
-        .bg(move || theme().card)
+        .bg(move || rgba((crate::theme::parse_hex(&card_color) << 8) | 0x12))
         .p(px(14.0))
         .on_press(move || {
             if money_bulk_active() {

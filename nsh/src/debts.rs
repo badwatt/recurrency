@@ -1059,12 +1059,36 @@ fn form(
     } else {
         "Add Debt"
     };
+    let title_element = crate::components::money_title::money_title(
+        if editing.get().is_some() {
+            "Edit"
+        } else {
+            "Add"
+        },
+        || "Debt".to_string(),
+        move |next| match next {
+            "subscription" => {
+                modal.close();
+                crate::ui::create_subscription(None);
+            }
+            "budget" => {
+                modal.close();
+                crate::ui::create_budget(None);
+            }
+            "transaction" => {
+                modal.close();
+                crate::ui::create_transaction(None);
+            }
+            _ => {}
+        },
+    );
     crate::components::dialog::dialog(
         crate::components::dialog::DialogProps::new(title, "", move || {
             form_open.set(false);
             editing.set(None);
             modal.close();
         })
+        .title_element(title_element)
         .width(720.0)
         .body(
             view()

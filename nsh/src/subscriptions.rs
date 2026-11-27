@@ -603,237 +603,6 @@ pub fn open_create_dialog_kind(
     modal.open(move || form(data, form_signals, server_signal, token_signal, modal).into_element());
 }
 
-fn subscription_title(
-    kind: Signal<String>,
-    editing: Signal<Option<Uuid>>,
-    modal: ui::ModalHost,
-) -> AnyElement {
-    let panel = move || {
-        let choice = move |value: &'static str,
-                           label: &'static str,
-                           description: &'static str,
-                           icon: ImageAsset| {
-            let kind = kind;
-            button()
-                .cursor_pointer()
-                .w_full()
-                .flex_row()
-                .items_center()
-                .gap(px(10.0))
-                .p(px(10.0))
-                .rounded(px(8.0))
-                .border(px(1.0))
-                .border_color(move || theme().border.opacity(0.6))
-                .bg(move || theme().card)
-                .on_press(move || {
-                    kind.set(value.to_string());
-                    crate::ui::close_menu();
-                })
-                .child(
-                    view()
-                        .h(px(32.0))
-                        .w(px(32.0))
-                        .items_center()
-                        .justify_center()
-                        .rounded(px(8.0))
-                        .bg(move || theme().primary.opacity(0.12))
-                        .child(
-                            image(icon)
-                                .size(px(16.0))
-                                .tint_color(move || theme().primary),
-                        ),
-                )
-                .child(
-                    view()
-                        .flex_col()
-                        .min_w(px(0.0))
-                        .child(
-                            text(label)
-                                .text_size(px(13.0))
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_color(move || theme().foreground),
-                        )
-                        .child(
-                            text(description)
-                                .text_size(px(11.0))
-                                .text_color(move || theme().muted_foreground),
-                        ),
-                )
-                .into_element()
-        };
-        let one_off = move || {
-            crate::ui::close_menu();
-            modal.close();
-            crate::ui::create_transaction(None);
-        };
-        let debt = move || {
-            crate::ui::close_menu();
-            modal.close();
-            crate::ui::create_debt(None);
-        };
-        crate::components::card::card()
-            .w(px(300.0))
-            .p(px(8.0))
-            .gap(px(4.0))
-            .child(choice(
-                "subscription",
-                "Subscription",
-                "A recurring service like Netflix.",
-                asset!("icons/subscriptions.svg"),
-            ))
-            .child(choice(
-                "budget",
-                "Budget",
-                "A recurring expense you plan for.",
-                asset!("icons/wallet.svg"),
-            ))
-            .child(
-                button()
-                    .cursor_pointer()
-                    .w_full()
-                    .flex_row()
-                    .items_center()
-                    .gap(px(10.0))
-                    .p(px(10.0))
-                    .rounded(px(8.0))
-                    .border(px(1.0))
-                    .border_color(move || theme().border.opacity(0.6))
-                    .bg(move || theme().card)
-                    .on_press(one_off)
-                    .child(
-                        view()
-                            .h(px(32.0))
-                            .w(px(32.0))
-                            .items_center()
-                            .justify_center()
-                            .rounded(px(8.0))
-                            .bg(move || theme().primary.opacity(0.12))
-                            .child(
-                                image(asset!("icons/transactions.svg"))
-                                    .size(px(16.0))
-                                    .tint_color(move || theme().primary),
-                            ),
-                    )
-                    .child(
-                        view()
-                            .flex_col()
-                            .child(
-                                text("One-off payment")
-                                    .text_size(px(13.0))
-                                    .font_weight(FontWeight::SEMIBOLD)
-                                    .text_color(move || theme().foreground),
-                            )
-                            .child(
-                                text("A single charge.")
-                                    .text_size(px(11.0))
-                                    .text_color(move || theme().muted_foreground),
-                            ),
-                    ),
-            )
-            .child(
-                button()
-                    .cursor_pointer()
-                    .w_full()
-                    .flex_row()
-                    .items_center()
-                    .gap(px(10.0))
-                    .p(px(10.0))
-                    .rounded(px(8.0))
-                    .border(px(1.0))
-                    .border_color(move || theme().border.opacity(0.6))
-                    .bg(move || theme().card)
-                    .on_press(debt)
-                    .child(
-                        view()
-                            .h(px(32.0))
-                            .w(px(32.0))
-                            .items_center()
-                            .justify_center()
-                            .rounded(px(8.0))
-                            .bg(move || theme().destructive.opacity(0.12))
-                            .child(
-                                image(asset!("icons/debts.svg"))
-                                    .size(px(16.0))
-                                    .tint_color(move || theme().destructive),
-                            ),
-                    )
-                    .child(
-                        view()
-                            .flex_col()
-                            .child(
-                                text("Debt")
-                                    .text_size(px(13.0))
-                                    .font_weight(FontWeight::SEMIBOLD)
-                                    .text_color(move || theme().foreground),
-                            )
-                            .child(
-                                text("Money you owe.")
-                                    .text_size(px(11.0))
-                                    .text_color(move || theme().muted_foreground),
-                            ),
-                    ),
-            )
-            .into_element()
-    };
-    view()
-        .flex_row()
-        .items_center()
-        .gap(px(6.0))
-        .child(
-            text(move || {
-                if editing.get().is_some() {
-                    "Edit "
-                } else {
-                    "Add "
-                }
-            })
-            .text_size(px(18.0))
-            .font_weight(FontWeight::SEMIBOLD)
-            .text_color(move || theme().foreground),
-        )
-        .child(
-            view()
-                .flex_row()
-                .items_center()
-                .gap(px(4.0))
-                .px(px(6.0))
-                .rounded(px(6.0))
-                .cursor_pointer()
-                .on_press(move |event: &PressEvent| {
-                    if editing.get().is_some() {
-                        return;
-                    }
-                    let page = event.page_position;
-                    let local = event.position;
-                    crate::ui::open_menu(
-                        crate::ui::MenuPlacement::At {
-                            top: page.y.0 - local.y.0 + 28.0,
-                            left: page.x.0 - local.x.0 - 6.0,
-                        },
-                        panel,
-                    );
-                })
-                .child(
-                    text(move || {
-                        if kind.get() == "budget" {
-                            "Budget".to_string()
-                        } else {
-                            "Subscription".to_string()
-                        }
-                    })
-                    .text_size(px(18.0))
-                    .font_weight(FontWeight::SEMIBOLD)
-                    .text_color(move || theme().primary),
-                )
-                .child(
-                    image(asset!("icons/chevron-down.svg"))
-                        .size(px(14.0))
-                        .tint_color(move || theme().primary),
-                ),
-        )
-        .into_element()
-}
-
 fn form(
     data: Resource<SubscriptionsData, String>,
     form: FormSignals,
@@ -1042,7 +811,28 @@ fn form(
     } else {
         "Add Subscription"
     };
-    let title_element = subscription_title(kind, editing, modal);
+    let title_element = crate::components::money_title::money_title(
+        if editing.get().is_some() { "Edit" } else { "Add" },
+        move || {
+            if kind.get() == "budget" {
+                "Budget".to_string()
+            } else {
+                "Subscription".to_string()
+            }
+        },
+        move |next| match next {
+            "subscription" | "budget" => kind.set(next.to_string()),
+            "transaction" => {
+                modal.close();
+                crate::ui::create_transaction(None);
+            }
+            "debt" => {
+                modal.close();
+                crate::ui::create_debt(None);
+            }
+            _ => {}
+        },
+    );
     let subtitle = if editing.get().is_some() {
         "Update the recurring expense or subscription."
     } else {

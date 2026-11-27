@@ -19,6 +19,6 @@ pub use molecules::{
 };
 pub use organisms::billing_schedule::{BillingMode, BillingScheduleProps, billing_schedule};
 pub use organisms::{
-    confirm, dialog, dropdown_menu, fab_menu, filter_menu, logo_search, page_header, sort_menu,
-    theme_picker, web_server_qr,
+    confirm, dialog, dropdown_menu, fab_menu, filter_menu, logo_search, money_title, page_header,
+    sort_menu, theme_picker, web_server_qr,
 };

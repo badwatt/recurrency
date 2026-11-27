@@ -47,6 +47,23 @@ thread_local! {
         const { RefCell::new(None) };
     static DEBT_CREATOR: RefCell<Option<std::rc::Rc<dyn Fn(Option<chrono::NaiveDate>)>>> =
         const { RefCell::new(None) };
+    static BUDGET_CREATOR: RefCell<Option<std::rc::Rc<dyn Fn(Option<chrono::NaiveDate>)>>> =
+        const { RefCell::new(None) };
+}
+
+pub fn init_budget_creator(create: impl Fn(Option<chrono::NaiveDate>) + 'static) {
+    BUDGET_CREATOR.with(|slot| {
+        *slot.borrow_mut() = Some(std::rc::Rc::new(create));
+    });
+}
+
+pub fn create_budget(date: Option<chrono::NaiveDate>) {
+    BUDGET_CREATOR.with(|slot| {
+        if let Some(create) = slot.borrow().as_ref() {
+            let create = create.clone();
+            run_dialog(move || create(date));
+        }
+    });
 }
 
 pub fn init_transaction_creator(create: impl Fn(Option<chrono::NaiveDate>) + 'static) {
