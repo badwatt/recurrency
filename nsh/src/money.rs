@@ -774,7 +774,7 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
                 .into_element(),
             compact,
             false,
-            0.0,
+            HEADER_ACTION_WIDTH,
         ))
         .child(
             view()
@@ -1333,6 +1333,8 @@ fn type_badge(kind: Kind) -> AnyElement {
 
 /// Cards share the row (2 columns from 620, 3 from 900, 4 from 1200) instead of
 /// stacking when a fixed 360 px would not fit next to its neighbour.
+/// The header's action slot clips its children: the Add button needs room.
+const HEADER_ACTION_WIDTH: f32 = 120.0;
 const GRID_CARD_BASIS: f32 = 290.0;
 const GRID_CARD_MIN: f32 = 260.0;
 const GRID_CARD_MAX: f32 = 420.0;
