@@ -338,7 +338,7 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
                                 .otherwise(move || {
                                     when(
                                         move || route.get() == Route::Money,
-                                        move || money::money(auth_signal.get(), modal, compact),
+                                        move || money::money(auth_signal.get(), modal, route, compact),
                                     )
                                     .otherwise(move || {
                                         when(

@@ -110,6 +110,7 @@ pub fn dialog_overlay(modal: DialogHost) -> AnyElement {
 /// spacing and behaviour cannot drift between pages.
 pub struct DialogProps {
     pub title: String,
+    pub title_element: Option<AnyElement>,
     pub subtitle: String,
     pub width: f32,
     pub body: AnyElement,
@@ -127,6 +128,7 @@ impl DialogProps {
     ) -> Self {
         Self {
             title: title.into(),
+            title_element: None,
             subtitle: subtitle.into(),
             width: 508.0,
             body: view().into_element(),
@@ -135,6 +137,11 @@ impl DialogProps {
             on_close: Rc::new(on_close),
             scroll_id: None,
         }
+    }
+
+    pub fn title_element(mut self, title: AnyElement) -> Self {
+        self.title_element = Some(title);
+        self
     }
 
     pub fn width(mut self, width: f32) -> Self {
@@ -166,6 +173,7 @@ impl DialogProps {
 pub fn dialog(dialog: DialogProps) -> impl IntoElement {
     let DialogProps {
         title,
+        title_element,
         subtitle,
         width,
         body,
@@ -239,12 +247,13 @@ pub fn dialog(dialog: DialogProps) -> impl IntoElement {
                         .flex_row()
                         .items_center()
                         .justify_between()
-                        .child(
+                        .child(title_element.unwrap_or_else(|| {
                             text(title)
                                 .text_size(px(18.0))
                                 .font_weight(FontWeight::SEMIBOLD)
-                                .text_color(move || nsh_base::theme().foreground),
-                        )
+                                .text_color(move || nsh_base::theme().foreground)
+                                .into_element()
+                        }))
                         .child(
                             nsh_base::button()
                                 .cursor_pointer()
