@@ -1341,6 +1341,10 @@ fn type_badge(kind: Kind) -> AnyElement {
 const GRID_CARD_BASIS: f32 = 290.0;
 const GRID_CARD_MIN: f32 = 260.0;
 const GRID_CARD_MAX: f32 = 420.0;
+/// Cards wear the colour of the account (or the category) the item belongs to,
+/// so a tile is recognisable before reading its name.
+const CARD_TINT_ALPHA: u32 = 0x1f;
+const CARD_BORDER_ALPHA: u32 = 0x4d;
 
 fn grid_card(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyElement {
     let item_id = item.id;
@@ -1351,6 +1355,7 @@ fn grid_card(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyEle
     let kind = item.kind;
     let progress = item.progress;
     let card_color = item.color.clone();
+    let border_color = card_color.clone();
     card()
         .basis(px(GRID_CARD_BASIS))
         .flex_grow(1.0)
@@ -1360,12 +1365,12 @@ fn grid_card(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyEle
         .p(px(18.0))
         .gap(px(12.0))
         .cursor_pointer()
-        .bg(move || rgba((crate::theme::parse_hex(&card_color) << 8) | 0x12))
+        .bg(move || rgba((crate::theme::parse_hex(&card_color) << 8) | CARD_TINT_ALPHA))
         .border_color(move || {
             if money_is_selected(kind, item_id) {
                 theme().primary
             } else {
-                theme().border
+                rgba((crate::theme::parse_hex(&border_color) << 8) | CARD_BORDER_ALPHA).into()
             }
         })
         .on_press(move || {
@@ -1433,7 +1438,7 @@ fn grid_card(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyEle
                                 account.clone()
                             })
                             .text_size(px(11.0))
-                            .text_color(move || theme().muted_foreground),
+                            .text_color(move || theme().foreground.opacity(0.75)),
                         )
                         .when(kind == Kind::Debt, |row| {
                             row.child(crate::ui::action_button("Pay", false, move || {
@@ -1491,6 +1496,7 @@ fn list_row(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyElem
     let kind = item.kind;
     let progress = item.progress;
     let card_color = item.color.clone();
+    let border_color = card_color.clone();
     view()
         .w_full()
         .rounded(px(12.0))
@@ -1500,10 +1506,10 @@ fn list_row(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyElem
             if money_is_selected(kind, item_id) {
                 theme().primary
             } else {
-                theme().border
+                rgba((crate::theme::parse_hex(&border_color) << 8) | CARD_BORDER_ALPHA).into()
             }
         })
-        .bg(move || rgba((crate::theme::parse_hex(&card_color) << 8) | 0x12))
+        .bg(move || rgba((crate::theme::parse_hex(&card_color) << 8) | CARD_TINT_ALPHA))
         .p(px(14.0))
         .on_press(move || {
             if money_bulk_active() {
