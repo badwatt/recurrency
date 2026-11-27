@@ -3,6 +3,7 @@
 use nsh_base::{button, theme};
 use nsh_core::prelude::*;
 use rust_decimal::Decimal;
+use uuid::Uuid;
 
 use crate::api;
 use crate::auth::AuthSession;
@@ -67,6 +68,7 @@ impl Filter {
 
 #[derive(Clone)]
 struct Item {
+    id: Uuid,
     kind: Kind,
     name: String,
     amount: Decimal,
@@ -383,6 +385,7 @@ fn build_items(
                 |date| format!("Next: {}", format_date(date)),
             );
             items.push(Item {
+                id: sub.id,
                 kind,
                 name: sub.name,
                 amount: sub.amount,
@@ -409,6 +412,7 @@ fn build_items(
                 .find(|c| c.id == tx.category_id)
                 .map_or_else(String::new, |c| c.name.clone());
             items.push(Item {
+                id: tx.id,
                 kind: Kind::Transaction,
                 name: tx.name,
                 amount: tx.amount,
@@ -444,6 +448,7 @@ fn build_items(
                 0.0
             };
             items.push(Item {
+                id: debt.id,
                 kind: Kind::Debt,
                 name: debt.name,
                 amount: debt.remaining_amount,
