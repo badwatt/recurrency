@@ -52,7 +52,7 @@ pub fn list_toolbar(
         )
 }
 
-fn view_toggle(
+pub(crate) fn view_toggle(
     icon: ImageAsset,
     label: &'static str,
     active: impl Fn() -> bool + 'static,

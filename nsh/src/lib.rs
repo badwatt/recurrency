@@ -20,6 +20,7 @@ mod local;
 mod login;
 mod mic;
 mod models;
+mod money;
 mod notifications;
 mod recurrence;
 mod reports;
@@ -42,6 +43,7 @@ use nsh_core::prelude::*;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Route {
     Dashboard,
+    Money,
     Subscriptions,
     Transactions,
     Debts,
@@ -51,11 +53,9 @@ pub enum Route {
 }
 
 impl Route {
-    pub const NAV: [Route; 6] = [
+    pub const NAV: [Route; 4] = [
         Route::Dashboard,
-        Route::Subscriptions,
-        Route::Transactions,
-        Route::Debts,
+        Route::Money,
         Route::Calendar,
         Route::Reports,
     ];
@@ -63,6 +63,7 @@ impl Route {
     pub fn key(self) -> &'static str {
         match self {
             Route::Dashboard => "dashboard",
+            Route::Money => "money",
             Route::Subscriptions => "subscriptions",
             Route::Transactions => "transactions",
             Route::Debts => "debts",
@@ -75,6 +76,7 @@ impl Route {
     pub fn from_key(value: &str) -> Option<Self> {
         Some(match value.trim().trim_start_matches('#') {
             "dashboard" => Route::Dashboard,
+            "money" => Route::Money,
             "subscriptions" => Route::Subscriptions,
             "transactions" => Route::Transactions,
             "debts" => Route::Debts,
@@ -88,6 +90,7 @@ impl Route {
     pub fn label(self) -> &'static str {
         match self {
             Route::Dashboard => "Dashboard",
+            Route::Money => "Money",
             Route::Subscriptions => "Subscriptions",
             Route::Transactions => "Transactions",
             Route::Debts => "Debts",
@@ -100,6 +103,7 @@ impl Route {
     pub(crate) fn icon(self) -> ImageAsset {
         match self {
             Route::Dashboard => asset!("icons/dashboard.svg"),
+            Route::Money => asset!("icons/wallet.svg"),
             Route::Subscriptions => asset!("icons/subscriptions.svg"),
             Route::Transactions => asset!("icons/transactions.svg"),
             Route::Debts => asset!("icons/debts.svg"),
@@ -333,21 +337,14 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
                                 )
                                 .otherwise(move || {
                                     when(
-                                        move || route.get() == Route::Subscriptions,
-                                        move || {
-                                            subscriptions::subscriptions(
-                                                auth_signal.get(),
-                                                modal,
-                                                create_intent,
-                                                compact,
-                                            )
-                                        },
+                                        move || route.get() == Route::Money,
+                                        move || money::money(auth_signal.get(), modal, compact),
                                     )
                                     .otherwise(move || {
                                         when(
-                                            move || route.get() == Route::Transactions,
+                                            move || route.get() == Route::Subscriptions,
                                             move || {
-                                                transactions::transactions(
+                                                subscriptions::subscriptions(
                                                     auth_signal.get(),
                                                     modal,
                                                     create_intent,
@@ -358,9 +355,9 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
                                         .otherwise(
                                             move || {
                                                 when(
-                                                    move || route.get() == Route::Debts,
+                                                    move || route.get() == Route::Transactions,
                                                     move || {
-                                                        debts::debts(
+                                                        transactions::transactions(
                                                             auth_signal.get(),
                                                             modal,
                                                             create_intent,
@@ -370,19 +367,21 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
                                                 )
                                                 .otherwise(move || {
                                                     when(
-                                                        move || route.get() == Route::Calendar,
+                                                        move || route.get() == Route::Debts,
                                                         move || {
-                                                            calendar::calendar(
+                                                            debts::debts(
                                                                 auth_signal.get(),
+                                                                modal,
+                                                                create_intent,
                                                                 compact,
                                                             )
                                                         },
                                                     )
                                                     .otherwise(move || {
                                                         when(
-                                                            move || route.get() == Route::Reports,
+                                                            move || route.get() == Route::Calendar,
                                                             move || {
-                                                                reports::reports(
+                                                                calendar::calendar(
                                                                     auth_signal.get(),
                                                                     compact,
                                                                 )
@@ -391,19 +390,33 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
                                                         .otherwise(move || {
                                                             when(
                                                                 move || {
-                                                                    route.get() == Route::Settings
+                                                                    route.get() == Route::Reports
                                                                 },
                                                                 move || {
-                                                                    settings::settings(
+                                                                    reports::reports(
                                                                         auth_signal.get(),
-                                                                        session,
+                                                                        compact,
                                                                     )
                                                                 },
                                                             )
                                                             .otherwise(move || {
-                                                                ui::pending_screen(
-                                                                    route.get().label(),
+                                                                when(
+                                                                    move || {
+                                                                        route.get()
+                                                                            == Route::Settings
+                                                                    },
+                                                                    move || {
+                                                                        settings::settings(
+                                                                            auth_signal.get(),
+                                                                            session,
+                                                                        )
+                                                                    },
                                                                 )
+                                                                .otherwise(move || {
+                                                                    ui::pending_screen(
+                                                                        route.get().label(),
+                                                                    )
+                                                                })
                                                             })
                                                         })
                                                     })
