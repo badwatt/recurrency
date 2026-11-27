@@ -284,7 +284,6 @@ pub fn open_menu(placement: MenuPlacement, build: impl Fn() -> AnyElement + 'sta
     });
 }
 
-
 /// Whether the app-wide menu host currently owns an open surface.
 pub fn menu_open() -> bool {
     MENU_STATE.with(|slot| slot.borrow().is_some())

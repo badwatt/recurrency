@@ -699,7 +699,9 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
                             .flex_row()
                             .justify_end()
                             .gap(px(8.0))
-                            .child(crate::ui::action_button("Cancel", false, move || modal.close()))
+                            .child(crate::ui::action_button("Cancel", false, move || {
+                                modal.close()
+                            }))
                             .child(crate::ui::action_button("Pay", false, move || {
                                 let Ok(value) = amount.get().trim().parse::<Decimal>() else {
                                     error.set("Enter a valid amount.".to_string());
@@ -712,7 +714,8 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
                                     error.set("Enter a valid date.".to_string());
                                     return;
                                 };
-                                let note_value = (!note.get().trim().is_empty()).then(|| note.get());
+                                let note_value =
+                                    (!note.get().trim().is_empty()).then(|| note.get());
                                 let server = save_server.clone();
                                 let token = save_token.clone();
                                 spawn(async move {
@@ -810,12 +813,17 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
                             move || list_view.get(),
                             move || list_view.set(true),
                         )),
-                )
+                ),
         )
-        .child(chips(
-            filter,
-            move || build_items(subscriptions, transactions, debts, search.get(), Filter::All),
-        ))
+        .child(chips(filter, move || {
+            build_items(
+                subscriptions,
+                transactions,
+                debts,
+                search.get(),
+                Filter::All,
+            )
+        }))
         .child(
             when(
                 move || bulk.get(),
@@ -975,9 +983,7 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
                         let base_currency = branch_currency.clone();
                         let item_currency = stored(base_currency.clone());
                         let item_rates = stored(base_rates.clone());
-                        when(
-                            move || list_view.get(),
-                            {
+                        when(move || list_view.get(), {
                             move || {
                                 view()
                                     .w_full()
@@ -985,9 +991,18 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
                                     .gap(px(8.0))
                                     .child(each(
                                         items,
-                                        |item| format!("{}-{}-{}-{}", item.kind.label(), item.id, item.updated, item.color),
+                                        |item| {
+                                            format!(
+                                                "{}-{}-{}-{}",
+                                                item.kind.label(),
+                                                item.id,
+                                                item.updated,
+                                                item.color
+                                            )
+                                        },
                                         move |item, _| {
-                                            let currency = item_currency.with(|value| value.clone());
+                                            let currency =
+                                                item_currency.with(|value| value.clone());
                                             let rates = item_rates.with(|value| value.clone());
                                             list_row(item.get(), &currency, &rates)
                                         },
@@ -1003,7 +1018,15 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
                                 .gap(px(16.0))
                                 .child(each(
                                     items,
-                                    |item| format!("{}-{}-{}-{}", item.kind.label(), item.id, item.updated, item.color),
+                                    |item| {
+                                        format!(
+                                            "{}-{}-{}-{}",
+                                            item.kind.label(),
+                                            item.id,
+                                            item.updated,
+                                            item.color
+                                        )
+                                    },
                                     move |item, _| {
                                         let currency = item_currency.with(|value| value.clone());
                                         let rates = item_rates.with(|value| value.clone());
@@ -1626,7 +1649,7 @@ fn list_row(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyElem
                             true,
                             move || money_delete(kind, item_id),
                         )),
-                )
+                ),
         )
         .into_element()
 }
@@ -1739,7 +1762,7 @@ fn add_menu(auth: std::rc::Rc<AuthSession>, modal: ui::ModalHost) -> AnyElement 
 
 #[cfg(test)]
 mod tests {
-    use super::{Filter, Kind, fallback_color, FALLBACK_COLORS};
+    use super::{FALLBACK_COLORS, Filter, Kind, fallback_color};
 
     #[test]
     fn the_type_filters_match_their_own_kind_only() {

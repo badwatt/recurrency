@@ -546,7 +546,11 @@ fn form(
         "Add Transaction"
     };
     let title_element = crate::components::money_title::money_title(
-        if editing.get().is_some() { "Edit" } else { "Add" },
+        if editing.get().is_some() {
+            "Edit"
+        } else {
+            "Add"
+        },
         || "One-off payment".to_string(),
         move |next| match next {
             "subscription" => {
