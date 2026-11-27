@@ -1572,13 +1572,31 @@ fn list_row(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyElem
                     view()
                         .flex_row()
                         .items_center()
-                        .gap(px(4.0))
+                        .gap(px(8.0))
                         .pointer_events(move || {
                             if money_bulk_active() {
                                 PointerEvents::None
                             } else {
                                 PointerEvents::Auto
                             }
+                        })
+                        .when_some(progress, |row, value| {
+                            row.child(
+                                view()
+                                    .w(px(80.0))
+                                    .h(px(6.0))
+                                    .rounded(px(999.0))
+                                    .bg(move || theme().muted)
+                                    .child(
+                                        view()
+                                            .h_full()
+                                            .w(nsh_core::geometry::Length::from(
+                                                nsh_core::geometry::Percentage(value),
+                                            ))
+                                            .rounded(px(999.0))
+                                            .bg(move || theme().primary),
+                                    ),
+                            )
                         })
                         .when(kind == Kind::Debt, |row| {
                             row.child(crate::ui::action_button("Pay", false, move || {
@@ -1606,24 +1624,6 @@ fn list_row(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyElem
                             move || money_delete(kind, item_id),
                         )),
                 )
-                .when_some(progress, |row, value| {
-                    row.child(
-                        view()
-                            .w(px(80.0))
-                            .h(px(6.0))
-                            .rounded(px(999.0))
-                            .bg(move || theme().muted)
-                            .child(
-                                view()
-                                    .h_full()
-                                    .w(nsh_core::geometry::Length::from(
-                                        nsh_core::geometry::Percentage(value),
-                                    ))
-                                    .rounded(px(999.0))
-                                    .bg(move || theme().primary),
-                            ),
-                    )
-                }),
         )
         .into_element()
 }
