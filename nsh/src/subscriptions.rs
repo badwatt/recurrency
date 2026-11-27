@@ -498,7 +498,11 @@ pub fn open_edit_dialog(
 ) {
     let recurrence = subscription.recurrence.clone();
     let days = if recurrence.unit == "year" {
-        recurrence.dates.iter().map(|date| date.day).collect::<Vec<_>>()
+        recurrence
+            .dates
+            .iter()
+            .map(|date| date.day)
+            .collect::<Vec<_>>()
     } else if recurrence.days.is_empty() {
         vec![subscription.start_date.day() as u8; 1]
     } else {
@@ -510,7 +514,12 @@ pub fn open_edit_dialog(
         name: signal(subscription.name.clone()),
         amount: signal(subscription.amount.to_string()),
         start_date: signal(subscription.start_date.to_string()),
-        end_date: signal(subscription.end_date.map(|date| date.to_string()).unwrap_or_default()),
+        end_date: signal(
+            subscription
+                .end_date
+                .map(|date| date.to_string())
+                .unwrap_or_default(),
+        ),
         currency: signal(subscription.currency.clone()),
         interval: signal(recurrence.interval.max(1).to_string()),
         kind: signal(subscription.kind.clone()),
@@ -600,7 +609,10 @@ fn subscription_title(
     modal: ui::ModalHost,
 ) -> AnyElement {
     let panel = move || {
-        let choice = move |value: &'static str, label: &'static str, description: &'static str, icon: ImageAsset| {
+        let choice = move |value: &'static str,
+                           label: &'static str,
+                           description: &'static str,
+                           icon: ImageAsset| {
             let kind = kind;
             button()
                 .cursor_pointer()
@@ -618,14 +630,34 @@ fn subscription_title(
                     crate::ui::close_menu();
                 })
                 .child(
-                    view().h(px(32.0)).w(px(32.0)).items_center().justify_center()
-                        .rounded(px(8.0)).bg(move || theme().primary.opacity(0.12))
-                        .child(image(icon).size(px(16.0)).tint_color(move || theme().primary)),
+                    view()
+                        .h(px(32.0))
+                        .w(px(32.0))
+                        .items_center()
+                        .justify_center()
+                        .rounded(px(8.0))
+                        .bg(move || theme().primary.opacity(0.12))
+                        .child(
+                            image(icon)
+                                .size(px(16.0))
+                                .tint_color(move || theme().primary),
+                        ),
                 )
                 .child(
-                    view().flex_col().min_w(px(0.0))
-                        .child(text(label).text_size(px(13.0)).font_weight(FontWeight::SEMIBOLD).text_color(move || theme().foreground))
-                        .child(text(description).text_size(px(11.0)).text_color(move || theme().muted_foreground)),
+                    view()
+                        .flex_col()
+                        .min_w(px(0.0))
+                        .child(
+                            text(label)
+                                .text_size(px(13.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(move || theme().foreground),
+                        )
+                        .child(
+                            text(description)
+                                .text_size(px(11.0))
+                                .text_color(move || theme().muted_foreground),
+                        ),
                 )
                 .into_element()
         };
@@ -669,14 +701,33 @@ fn subscription_title(
                     .bg(move || theme().card)
                     .on_press(one_off)
                     .child(
-                        view().h(px(32.0)).w(px(32.0)).items_center().justify_center()
-                            .rounded(px(8.0)).bg(move || theme().primary.opacity(0.12))
-                            .child(image(asset!("icons/transactions.svg")).size(px(16.0)).tint_color(move || theme().primary)),
+                        view()
+                            .h(px(32.0))
+                            .w(px(32.0))
+                            .items_center()
+                            .justify_center()
+                            .rounded(px(8.0))
+                            .bg(move || theme().primary.opacity(0.12))
+                            .child(
+                                image(asset!("icons/transactions.svg"))
+                                    .size(px(16.0))
+                                    .tint_color(move || theme().primary),
+                            ),
                     )
                     .child(
-                        view().flex_col()
-                            .child(text("One-off payment").text_size(px(13.0)).font_weight(FontWeight::SEMIBOLD).text_color(move || theme().foreground))
-                            .child(text("A single charge.").text_size(px(11.0)).text_color(move || theme().muted_foreground)),
+                        view()
+                            .flex_col()
+                            .child(
+                                text("One-off payment")
+                                    .text_size(px(13.0))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_color(move || theme().foreground),
+                            )
+                            .child(
+                                text("A single charge.")
+                                    .text_size(px(11.0))
+                                    .text_color(move || theme().muted_foreground),
+                            ),
                     ),
             )
             .child(
@@ -693,14 +744,33 @@ fn subscription_title(
                     .bg(move || theme().card)
                     .on_press(debt)
                     .child(
-                        view().h(px(32.0)).w(px(32.0)).items_center().justify_center()
-                            .rounded(px(8.0)).bg(move || theme().destructive.opacity(0.12))
-                            .child(image(asset!("icons/debts.svg")).size(px(16.0)).tint_color(move || theme().destructive)),
+                        view()
+                            .h(px(32.0))
+                            .w(px(32.0))
+                            .items_center()
+                            .justify_center()
+                            .rounded(px(8.0))
+                            .bg(move || theme().destructive.opacity(0.12))
+                            .child(
+                                image(asset!("icons/debts.svg"))
+                                    .size(px(16.0))
+                                    .tint_color(move || theme().destructive),
+                            ),
                     )
                     .child(
-                        view().flex_col()
-                            .child(text("Debt").text_size(px(13.0)).font_weight(FontWeight::SEMIBOLD).text_color(move || theme().foreground))
-                            .child(text("Money you owe.").text_size(px(11.0)).text_color(move || theme().muted_foreground)),
+                        view()
+                            .flex_col()
+                            .child(
+                                text("Debt")
+                                    .text_size(px(13.0))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_color(move || theme().foreground),
+                            )
+                            .child(
+                                text("Money you owe.")
+                                    .text_size(px(11.0))
+                                    .text_color(move || theme().muted_foreground),
+                            ),
                     ),
             )
             .into_element()
@@ -710,10 +780,16 @@ fn subscription_title(
         .items_center()
         .gap(px(6.0))
         .child(
-            text(move || if editing.get().is_some() { "Edit " } else { "Add " })
-                .text_size(px(18.0))
-                .font_weight(FontWeight::SEMIBOLD)
-                .text_color(move || theme().foreground),
+            text(move || {
+                if editing.get().is_some() {
+                    "Edit "
+                } else {
+                    "Add "
+                }
+            })
+            .text_size(px(18.0))
+            .font_weight(FontWeight::SEMIBOLD)
+            .text_color(move || theme().foreground),
         )
         .child(
             view()

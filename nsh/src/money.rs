@@ -12,8 +12,8 @@ use crate::components::converted_amount::converted_amount;
 use crate::components::empty_state::empty_state;
 use crate::components::page_header::page_header;
 use crate::components::search_input::search_input;
-use crate::ui;
 use crate::format::format_date;
+use crate::ui;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Kind {
@@ -32,7 +32,6 @@ impl Kind {
             Self::Debt => "Debt",
         }
     }
-
 }
 
 thread_local! {
@@ -185,11 +184,7 @@ struct Item {
     updated: i64,
 }
 
-pub fn money(
-    auth: AuthSession,
-    modal: ui::ModalHost,
-    compact: Signal<bool>,
-) -> AnyElement {
+pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> AnyElement {
     let server = crate::auth::stored_server();
     let token = auth.token.clone();
     let currency = if auth.user.currency.is_empty() {
@@ -319,7 +314,8 @@ pub fn money(
             }
         }
     };
-    let edit_action: std::rc::Rc<dyn Fn(Kind, Uuid)> = std::rc::Rc::new(edit_action);    let duplicate_item = {
+    let edit_action: std::rc::Rc<dyn Fn(Kind, Uuid)> = std::rc::Rc::new(edit_action);
+    let duplicate_item = {
         let server = server.clone();
         let token = token.clone();
         let duplicate_currency = currency.clone();
@@ -339,7 +335,9 @@ pub fn money(
                             .subscriptions
                             .into_iter()
                             .find(|item| item.id == id)
-                        else { return };
+                        else {
+                            return;
+                        };
                         let frequency = match item.recurrence.unit.as_str() {
                             "day" => "daily",
                             "week" => "weekly",
@@ -378,7 +376,9 @@ pub fn money(
                             .transactions
                             .into_iter()
                             .find(|item| item.id == id)
-                        else { return };
+                        else {
+                            return;
+                        };
                         api::create_transaction(
                             server,
                             token,
@@ -403,7 +403,9 @@ pub fn money(
                             .debts
                             .into_iter()
                             .find(|item| item.id == id)
-                        else { return };
+                        else {
+                            return;
+                        };
                         api::create_debt(
                             server,
                             token,
@@ -462,8 +464,14 @@ pub fn money(
                     )
                     .width(420.0)
                     .footer(
-                        view().w_full().flex_row().justify_end().gap(px(8.0))
-                            .child(crate::ui::action_button("Cancel", false, move || modal.close()))
+                        view()
+                            .w_full()
+                            .flex_row()
+                            .justify_end()
+                            .gap(px(8.0))
+                            .child(crate::ui::action_button("Cancel", false, move || {
+                                modal.close()
+                            }))
                             .child(crate::ui::action_button("Delete", true, move || {
                                 let server = server.clone();
                                 let token = token.clone();
@@ -472,7 +480,9 @@ pub fn money(
                                         Kind::Subscription | Kind::Budget => {
                                             api::delete_subscription(server, token, id).await
                                         }
-                                        Kind::Transaction => api::delete_transaction(server, token, id).await,
+                                        Kind::Transaction => {
+                                            api::delete_transaction(server, token, id).await
+                                        }
                                         Kind::Debt => api::delete_debt(server, token, id).await,
                                     };
                                     match result {
@@ -543,13 +553,21 @@ pub fn money(
                     )
                     .width(460.0)
                     .body(
-                        view().w_full().p(px(20.0)).child(
-                            crate::components::textarea::text_area(value, "Add notes…"),
-                        ).into_element(),
+                        view()
+                            .w_full()
+                            .p(px(20.0))
+                            .child(crate::components::textarea::text_area(value, "Add notes…"))
+                            .into_element(),
                     )
                     .footer(
-                        view().w_full().flex_row().justify_end().gap(px(8.0))
-                            .child(crate::ui::action_button("Cancel", false, move || modal.close()))
+                        view()
+                            .w_full()
+                            .flex_row()
+                            .justify_end()
+                            .gap(px(8.0))
+                            .child(crate::ui::action_button("Cancel", false, move || {
+                                modal.close()
+                            }))
                             .child(crate::ui::action_button("Save", false, move || {
                                 let notes = save_value.get();
                                 let server = save_server.clone();
@@ -562,12 +580,20 @@ pub fn money(
                                     };
                                     let result = match save_kind {
                                         Kind::Subscription | Kind::Budget => {
-                                            api::update_subscription(server, token, save_id, &body).await.map(|_| ())
+                                            api::update_subscription(server, token, save_id, &body)
+                                                .await
+                                                .map(|_| ())
                                         }
                                         Kind::Transaction => {
-                                            api::update_transaction(server, token, save_id, &body).await.map(|_| ())
+                                            api::update_transaction(server, token, save_id, &body)
+                                                .await
+                                                .map(|_| ())
                                         }
-                                        Kind::Debt => api::update_debt(server, token, save_id, &body).await.map(|_| ()),
+                                        Kind::Debt => {
+                                            api::update_debt(server, token, save_id, &body)
+                                                .await
+                                                .map(|_| ())
+                                        }
                                     };
                                     match result {
                                         Ok(()) => {
@@ -673,11 +699,18 @@ pub fn money(
                         .border(px(1.0))
                         .border_color(move || theme().primary.opacity(0.4))
                         .bg(move || theme().primary.opacity(0.06))
-                        .child(text(format!("{count} selected")).text_size(px(12.0)).font_weight(FontWeight::SEMIBOLD).text_color(move || theme().foreground))
+                        .child(
+                            text(format!("{count} selected"))
+                                .text_size(px(12.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(move || theme().foreground),
+                        )
                         .child(crate::ui::action_button("Select all", false, move || {
                             selected.set(all.iter().map(|item| (item.kind, item.id)).collect());
                         }))
-                        .child(crate::ui::action_button("Clear", false, move || selected.set(Vec::new())))
+                        .child(crate::ui::action_button("Clear", false, move || {
+                            selected.set(Vec::new())
+                        }))
                         .child(crate::ui::action_button("Delete", true, {
                             let server = server_signal;
                             let token = token_signal;
@@ -691,9 +724,26 @@ pub fn money(
                                 spawn(async move {
                                     for (kind, id) in values {
                                         let _ = match kind {
-                                            Kind::Subscription | Kind::Budget => api::delete_subscription(server.clone(), token.clone(), id).await,
-                                            Kind::Transaction => api::delete_transaction(server.clone(), token.clone(), id).await,
-                                            Kind::Debt => api::delete_debt(server.clone(), token.clone(), id).await,
+                                            Kind::Subscription | Kind::Budget => {
+                                                api::delete_subscription(
+                                                    server.clone(),
+                                                    token.clone(),
+                                                    id,
+                                                )
+                                                .await
+                                            }
+                                            Kind::Transaction => {
+                                                api::delete_transaction(
+                                                    server.clone(),
+                                                    token.clone(),
+                                                    id,
+                                                )
+                                                .await
+                                            }
+                                            Kind::Debt => {
+                                                api::delete_debt(server.clone(), token.clone(), id)
+                                                    .await
+                                            }
                                         };
                                     }
                                     selected.set(Vec::new());
@@ -719,28 +769,34 @@ pub fn money(
             })
             .otherwise(move || {
                 let rest_currency = currency.clone();
-                when(move || error().is_some(), move || {
-                    card()
-                        .p(px(24.0))
-                        .child(text(error().unwrap_or_default()))
-                        .into_element()
-                })
+                when(
+                    move || error().is_some(),
+                    move || {
+                        card()
+                            .p(px(24.0))
+                            .child(text(error().unwrap_or_default()))
+                            .into_element()
+                    },
+                )
                 .otherwise(move || {
                     let branch_currency = rest_currency.clone();
-                    when(move || items().is_empty(), move || {
-                        empty_state(
-                            asset!("icons/wallet.svg"),
-                            "No money items yet",
-                            "Add a subscription, budget, one-off payment or debt.",
-                            crate::components::button::button(
-                                crate::components::button::ButtonProps::new("Add")
-                                    .icon(asset!("icons/plus.svg"))
-                                    .on_press(move || crate::ui::create_subscription(None)),
+                    when(
+                        move || items().is_empty(),
+                        move || {
+                            empty_state(
+                                asset!("icons/wallet.svg"),
+                                "No money items yet",
+                                "Add a subscription, budget, one-off payment or debt.",
+                                crate::components::button::button(
+                                    crate::components::button::ButtonProps::new("Add")
+                                        .icon(asset!("icons/plus.svg"))
+                                        .on_press(move || crate::ui::create_subscription(None)),
+                                )
+                                .into_element(),
                             )
-                            .into_element(),
-                        )
-                        .into_element()
-                    })
+                            .into_element()
+                        },
+                    )
                     .otherwise(move || {
                         let base_rates = subscriptions
                             .get()
@@ -760,9 +816,7 @@ pub fn money(
                                     .children(
                                         items()
                                             .into_iter()
-                                            .map(|item| {
-                                                list_row(item, &currency, &rates)
-                                            }),
+                                            .map(|item| list_row(item, &currency, &rates)),
                                     )
                                     .into_element()
                             }
@@ -780,9 +834,7 @@ pub fn money(
                                 .children(
                                     items()
                                         .into_iter()
-                                        .map(|item| {
-                                            grid_card(item, &base_currency, &base_rates)
-                                        }),
+                                        .map(|item| grid_card(item, &base_currency, &base_rates)),
                                 )
                                 .into_element()
                         })
@@ -1095,16 +1147,39 @@ fn grid_card(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyEle
                 .gap(px(8.0))
                 .child(type_badge(kind))
                 .child(
-                    view().flex_row().items_center().gap(px(4.0))
+                    view()
+                        .flex_row()
+                        .items_center()
+                        .gap(px(4.0))
                         .child(
-                            text(if account.is_empty() { item.category.clone() } else { account.clone() })
-                                .text_size(px(11.0))
-                                .text_color(move || theme().muted_foreground),
+                            text(if account.is_empty() {
+                                item.category.clone()
+                            } else {
+                                account.clone()
+                            })
+                            .text_size(px(11.0))
+                            .text_color(move || theme().muted_foreground),
                         )
-                        .child(crate::ui::mini_icon_button(asset!("icons/notes.svg"), false, move || money_notes(kind, item_id)))
-                        .child(crate::ui::mini_icon_button(asset!("icons/pencil.svg"), false, move || money_edit(kind, item_id)))
-                        .child(crate::ui::mini_icon_button(asset!("icons/copy.svg"), false, move || money_duplicate(kind, item_id)))
-                        .child(crate::ui::mini_icon_button(asset!("icons/trash.svg"), true, move || money_delete(kind, item_id))),
+                        .child(crate::ui::mini_icon_button(
+                            asset!("icons/notes.svg"),
+                            false,
+                            move || money_notes(kind, item_id),
+                        ))
+                        .child(crate::ui::mini_icon_button(
+                            asset!("icons/pencil.svg"),
+                            false,
+                            move || money_edit(kind, item_id),
+                        ))
+                        .child(crate::ui::mini_icon_button(
+                            asset!("icons/copy.svg"),
+                            false,
+                            move || money_duplicate(kind, item_id),
+                        ))
+                        .child(crate::ui::mini_icon_button(
+                            asset!("icons/trash.svg"),
+                            true,
+                            move || money_delete(kind, item_id),
+                        )),
                 ),
         )
         .when_some(progress, |card, value| {
@@ -1207,11 +1282,37 @@ fn list_row(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyElem
                     true,
                 ))
                 .child(
-                    view().flex_row().items_center().gap(px(4.0))
-                        .child(crate::ui::mini_icon_button(asset!("icons/notes.svg"), false, move || money_notes(kind, item_id)))
-                        .child(crate::ui::mini_icon_button(asset!("icons/pencil.svg"), false, move || money_edit(kind, item_id)))
-                        .child(crate::ui::mini_icon_button(asset!("icons/copy.svg"), false, move || money_duplicate(kind, item_id)))
-                        .child(crate::ui::mini_icon_button(asset!("icons/trash.svg"), true, move || money_delete(kind, item_id))),
+                    view()
+                        .flex_row()
+                        .items_center()
+                        .gap(px(4.0))
+                        .pointer_events(move || {
+                            if money_bulk_active() {
+                                PointerEvents::None
+                            } else {
+                                PointerEvents::Auto
+                            }
+                        })
+                        .child(crate::ui::mini_icon_button(
+                            asset!("icons/notes.svg"),
+                            false,
+                            move || money_notes(kind, item_id),
+                        ))
+                        .child(crate::ui::mini_icon_button(
+                            asset!("icons/pencil.svg"),
+                            false,
+                            move || money_edit(kind, item_id),
+                        ))
+                        .child(crate::ui::mini_icon_button(
+                            asset!("icons/copy.svg"),
+                            false,
+                            move || money_duplicate(kind, item_id),
+                        ))
+                        .child(crate::ui::mini_icon_button(
+                            asset!("icons/trash.svg"),
+                            true,
+                            move || money_delete(kind, item_id),
+                        )),
                 )
                 .when_some(progress, |row, value| {
                     row.child(
@@ -1339,4 +1440,27 @@ fn add_menu(auth: std::rc::Rc<AuthSession>, modal: ui::ModalHost) -> AnyElement 
         ),
     )
     .into_element()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Filter, Kind};
+
+    #[test]
+    fn the_type_filters_match_their_own_kind_only() {
+        assert!(Filter::All.accepts(Kind::Budget));
+        assert!(Filter::Subscription.accepts(Kind::Subscription));
+        assert!(!Filter::Subscription.accepts(Kind::Budget));
+        assert!(Filter::Budget.accepts(Kind::Budget));
+        assert!(Filter::Transaction.accepts(Kind::Transaction));
+        assert!(Filter::Debt.accepts(Kind::Debt));
+    }
+
+    #[test]
+    fn money_kinds_have_user_facing_labels() {
+        assert_eq!(Kind::Subscription.label(), "Subscription");
+        assert_eq!(Kind::Budget.label(), "Budget");
+        assert_eq!(Kind::Transaction.label(), "One-off payment");
+        assert_eq!(Kind::Debt.label(), "Debt");
+    }
 }
