@@ -155,6 +155,8 @@ pub fn close_logo_modal() {
             modal.close();
         }
     });
+    #[cfg(target_arch = "wasm32")]
+    crate::web_files::restore_dialog_scrolls();
 }
 
 pub fn logo_modal_active() -> bool {

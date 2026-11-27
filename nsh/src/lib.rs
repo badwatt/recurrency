@@ -126,6 +126,8 @@ pub fn App() -> impl IntoElement {
     crate::web_files::install_search_escape();
     #[cfg(target_arch = "wasm32")]
     crate::web_files::install_inline_select_dismiss();
+    #[cfg(target_arch = "wasm32")]
+    crate::web_files::install_dialog_scroll_memory();
     crate::theme::apply(&crate::theme::saved());
     crate::format::init_date_format();
     ui::init_privacy();

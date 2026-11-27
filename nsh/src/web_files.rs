@@ -98,6 +98,100 @@ pub fn install_search_escape() {
     }
 }
 
+/// Remember the scroll offset of a named dialog so a remount (for example
+/// while a nested logo picker opens) does not send the form back to the top.
+pub fn install_dialog_scroll_memory() {
+    let Ok(document) = document() else { return };
+    let on_scroll = Closure::<dyn FnMut(web_sys::Event)>::new(move |event: web_sys::Event| {
+        let Some(target) = event
+            .target()
+            .and_then(|target| target.dyn_into::<web_sys::Element>().ok())
+        else {
+            return;
+        };
+        let Ok(Some(scroller)) = target.closest("[data-testid^='dialog-scroll:']") else {
+            return;
+        };
+        let Some(id) = scroller.get_attribute("data-testid") else {
+            return;
+        };
+        if !id.starts_with("dialog-scroll:") || id == "dialog-scroll:none" {
+            return;
+        }
+        if let Some(storage) =
+            web_sys::window().and_then(|window| window.local_storage().ok().flatten())
+        {
+            let key = format!("recurrency.dialog.{id}");
+            let _ = storage.set_item(&key, &scroller.scroll_top().to_string());
+        }
+    });
+    let _ = document.add_event_listener_with_callback_and_bool(
+        "scroll",
+        on_scroll.as_ref().unchecked_ref(),
+        true,
+    );
+    on_scroll.forget();
+}
+
+fn apply_saved_dialog_scrolls() {
+    let Some(document) = web_sys::window().and_then(|window| window.document()) else {
+        return;
+    };
+    let Some(storage) = web_sys::window().and_then(|window| window.local_storage().ok().flatten())
+    else {
+        return;
+    };
+    let Ok(nodes) = document.query_selector_all("[data-testid^='dialog-scroll:']") else {
+        return;
+    };
+    for index in 0..nodes.length() {
+        let Some(node) = nodes.get(index) else {
+            continue;
+        };
+        let Ok(element) = node.dyn_into::<web_sys::Element>() else {
+            continue;
+        };
+        let Some(id) = element.get_attribute("data-testid") else {
+            continue;
+        };
+        if id == "dialog-scroll:none" {
+            continue;
+        }
+        let Ok(Some(value)) = storage.get_item(&format!("recurrency.dialog.{id}")) else {
+            continue;
+        };
+        if let (Ok(offset), Ok(scroller)) = (
+            value.parse::<f64>(),
+            element.dyn_into::<web_sys::HtmlElement>(),
+        ) {
+            scroller.set_scroll_top(offset as i32);
+        }
+    }
+}
+
+/// Reapply saved offsets after a nested dialog closes. The subscription form
+/// can be rebuilt while the logo picker is open; this puts it back where the
+/// user left it once the new DOM exists.
+pub fn restore_dialog_scrolls() {
+    apply_saved_dialog_scrolls();
+    let closure = Closure::<dyn FnMut()>::new(apply_saved_dialog_scrolls);
+    if let Some(window) = web_sys::window() {
+        let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
+            closure.as_ref().unchecked_ref(),
+            60,
+        );
+        closure.forget();
+    }
+}
+
+pub fn clear_dialog_scroll(id: &str) {
+    let Some(storage) = web_sys::window().and_then(|window| window.local_storage().ok().flatten())
+    else {
+        return;
+    };
+    let _ = storage.remove_item(&format!("recurrency.dialog.dialog-scroll:{id}"));
+}
+
 /// Close an inline select when the pointer goes down outside its panel and
 /// field. The document listener presses the panel's own trigger, so the toggle
 /// runs through NSH's event loop instead of writing signals from JavaScript.

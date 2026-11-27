@@ -242,6 +242,9 @@ pub fn subscriptions(
         editing.set(None);
         active.set(true);
         form_open.set(true);
+        crate::components::dialog::reset_dialog_scroll();
+        #[cfg(target_arch = "wasm32")]
+        crate::web_files::clear_dialog_scroll("subscription-form");
         modal.open(move || {
             form(data, form_signals, server_signal, token_signal, modal).into_element()
         });
@@ -528,6 +531,7 @@ pub fn open_create_dialog(auth: AuthSession, modal: ui::ModalHost, date: Option<
     };
     let server_signal = signal(server);
     let token_signal = signal(token);
+    crate::components::dialog::reset_dialog_scroll();
     modal.open(move || form(data, form_signals, server_signal, token_signal, modal).into_element());
 }
 
@@ -748,6 +752,7 @@ fn form(
             editing.set(None);
             modal.close();
         })
+        .scroll_id("subscription-form")
         .width(720.0)
         .body(
             view()

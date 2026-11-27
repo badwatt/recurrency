@@ -10,6 +10,21 @@ thread_local! {
     static CURRENT_CLOSE: std::cell::RefCell<Option<Rc<dyn Fn()>>> = const {
         std::cell::RefCell::new(None)
     };
+    static DIALOG_SCROLL: std::cell::RefCell<std::collections::HashMap<u64, f32>> =
+        std::cell::RefCell::new(std::collections::HashMap::new());
+}
+
+/// Forget cached body offsets when a form is opened fresh.
+pub fn reset_dialog_scroll() {
+    DIALOG_SCROLL.with(|scroll| scroll.borrow_mut().clear());
+}
+
+fn dialog_scroll_key(title: &str, width: f32) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    title.hash(&mut hasher);
+    width.to_bits().hash(&mut hasher);
+    hasher.finish()
 }
 
 pub fn close_current_dialog() {
@@ -101,6 +116,7 @@ pub struct DialogProps {
     pub footer: AnyElement,
     pub show_footer: bool,
     pub on_close: Rc<dyn Fn()>,
+    pub scroll_id: Option<&'static str>,
 }
 
 impl DialogProps {
@@ -117,11 +133,17 @@ impl DialogProps {
             footer: view().into_element(),
             show_footer: true,
             on_close: Rc::new(on_close),
+            scroll_id: None,
         }
     }
 
     pub fn width(mut self, width: f32) -> Self {
         self.width = width;
+        self
+    }
+
+    pub fn scroll_id(mut self, id: &'static str) -> Self {
+        self.scroll_id = Some(id);
         self
     }
 
@@ -150,6 +172,7 @@ pub fn dialog(dialog: DialogProps) -> impl IntoElement {
         footer,
         show_footer,
         on_close,
+        scroll_id,
     } = dialog;
     CURRENT_CLOSE.with(|slot| {
         *slot.borrow_mut() = Some(on_close.clone());
@@ -157,11 +180,18 @@ pub fn dialog(dialog: DialogProps) -> impl IntoElement {
     let close = on_close.clone();
     let compact = crate::ui::compact_active();
     let body_scroll = element_ref();
-    let scrolled = stored(0.0_f32);
+    let scroll_key = dialog_scroll_key(&title, width);
+    let initial_scroll =
+        DIALOG_SCROLL.with(|scroll| *scroll.borrow().get(&scroll_key).unwrap_or(&0.0));
+    let scrolled = stored(initial_scroll);
     effect(move || {
         let _ = crate::ui::menu_revision();
         let offset = scrolled.with(|value| *value);
-        body_scroll.scroll_to_offset(px(offset), false);
+        if offset > 0.5 {
+            spawn(async move {
+                body_scroll.scroll_to_offset(px(offset), false);
+            });
+        }
     });
     let full = nsh_core::geometry::Length::from(nsh_core::geometry::Percentage(1.0));
     view()
@@ -237,8 +267,18 @@ pub fn dialog(dialog: DialogProps) -> impl IntoElement {
         .child(
             scroll()
                 .element_ref(&body_scroll)
+                .test_id(scroll_id.map_or("dialog-scroll:none", |id| {
+                    if id == "subscription-form" {
+                        "dialog-scroll:subscription-form"
+                    } else {
+                        "dialog-scroll:none"
+                    }
+                }))
                 .on_scroll(move |event: &ScrollEvent| {
                     scrolled.replace(event.offset.y.0);
+                    DIALOG_SCROLL.with(|scroll| {
+                        scroll.borrow_mut().insert(scroll_key, event.offset.y.0);
+                    });
                 })
                 .flex_grow(1.0)
                 .basis(if compact {
