@@ -616,25 +616,28 @@ fn annual_month_field(dates: Signal<Vec<AnnualDate>>, index: usize) -> impl Into
                     "Month",
                     "Month",
                     move || {
-                        dates.get().get(index).map_or_else(
+                        dates.try_get().unwrap_or_default().get(index).map_or_else(
                             || month_name(1).to_string(),
                             |date| month_name(u32::from(date.month)).to_string(),
                         )
                     },
                     move || {
                         dates
-                            .get()
+                            .try_get()
+                            .unwrap_or_default()
                             .get(index)
                             .map_or_else(String::new, |date| date.month.to_string())
                     },
-                    move || dates.get().len() > index,
+                    move || dates.try_get().unwrap_or_default().len() > index,
                     options,
                     move |value| {
-                        let mut next = dates.get();
+                        let Some(mut next) = dates.try_get() else {
+                            return;
+                        };
                         if let Some(slot) = next.get_mut(index) {
                             slot.month = value.parse().unwrap_or(1);
                         }
-                        dates.set(next);
+                        let _ = dates.try_set(next);
                     },
                 )
                 .searchable(false)
