@@ -178,6 +178,7 @@ impl DebtService {
                 pool,
                 user_id,
                 CreateSubscriptionRequest {
+                    kind: "subscription".to_string(),
                     name: req.name.clone(),
                     amount: monthly,
                     currency: req.currency.clone(),
@@ -418,6 +419,7 @@ impl DebtService {
                     pool,
                     user_id,
                     CreateSubscriptionRequest {
+                        kind: "subscription".to_string(),
                         name: req.name.clone().unwrap_or_else(|| existing.name.clone()),
                         amount: monthly,
                         currency: currency.clone(),

@@ -56,6 +56,8 @@ pub struct Subscription {
     pub schedule_day: Option<i16>,
     pub schedule_month: Option<i16>,
     pub recurrence: Json<Recurrence>,
+    #[serde(default = "subscription_kind")]
+    pub kind: String,
     pub start_date: NaiveDate,
     pub end_date: Option<NaiveDate>,
     pub next_billing_date: Option<NaiveDate>,
@@ -84,6 +86,8 @@ pub struct CreateSubscriptionRequest {
     pub is_active: Option<bool>,
     #[serde(default = "today_date")]
     pub start_date: NaiveDate,
+    #[serde(default = "subscription_kind")]
+    pub kind: String,
     #[serde(default)]
     pub first_payment: Option<NaiveDate>,
     #[serde(default)]
@@ -106,6 +110,7 @@ pub struct UpdateSubscriptionRequest {
     #[serde(default)]
     pub recurrence: Option<Recurrence>,
     pub start_date: Option<NaiveDate>,
+    pub kind: Option<String>,
     #[serde(default)]
     pub first_payment: Option<NaiveDate>,
     #[serde(default)]
@@ -175,6 +180,10 @@ fn today_date() -> NaiveDate {
     Utc::now().date_naive()
 }
 
+fn subscription_kind() -> String {
+    "subscription".to_string()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -218,6 +227,8 @@ mod tests {
             logo_url: None,
 
             first_payment: None,
+
+            kind: "subscription".to_string(),
         };
         assert!(req.validate().is_ok());
     }
@@ -241,6 +252,8 @@ mod tests {
             logo_url: None,
 
             first_payment: None,
+
+            kind: "subscription".to_string(),
         };
         assert!(req.validate().is_err());
     }
@@ -264,6 +277,8 @@ mod tests {
             logo_url: None,
 
             first_payment: None,
+
+            kind: "subscription".to_string(),
         };
         assert!(req.validate().is_err());
     }
@@ -290,6 +305,8 @@ mod tests {
 
             first_payment: None,
             clear_first_payment: false,
+
+            kind: None,
         };
         assert!(req.name.is_none());
         assert!(req.amount.is_none());
@@ -318,6 +335,8 @@ mod tests {
 
             first_payment: None,
             clear_first_payment: false,
+
+            kind: None,
         };
         assert_eq!(req.name.as_deref(), Some("New Name"));
         assert_eq!(req.frequency.as_deref(), Some("yearly"));
@@ -349,6 +368,8 @@ mod tests {
             logo_url: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
+
+            kind: "subscription".to_string(),
         };
         let resp = SubscriptionResponse::from(sub);
         assert_eq!(resp.id, uid);
@@ -407,6 +428,8 @@ mod tests {
                 logo_url: None,
 
                 first_payment: None,
+
+                kind: "subscription".to_string(),
             };
             assert!(req.validate().is_ok());
         }
@@ -487,6 +510,8 @@ mod tests {
             logo_url: None,
 
             first_payment: None,
+
+            kind: "subscription".to_string(),
         };
         assert!(req.validate().is_ok());
         assert_eq!(req.category_id, Some(cat_id));
@@ -514,6 +539,8 @@ mod tests {
 
             first_payment: None,
             clear_first_payment: false,
+
+            kind: None,
         };
         assert!(req.next_billing_date.is_some());
         assert_eq!(req.is_active, Some(true));

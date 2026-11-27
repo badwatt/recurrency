@@ -51,6 +51,8 @@ mod tests {
                     next_billing_date: None,
                     is_active: true,
                     category_id: None,
+
+                    kind: "subscription".to_string(),
                 };
                 assert!(!sub.frequency.is_empty());
             }
@@ -147,6 +149,8 @@ mod tests {
                 next_billing_date: None,
                 is_active: true,
                 category_id: None,
+
+                kind: "subscription".to_string(),
             };
             assert!(sub.is_active);
         }
@@ -169,6 +173,8 @@ mod tests {
                 next_billing_date: Some("2026-02-15".to_string()),
                 is_active: true,
                 category_id: None,
+
+                kind: "subscription".to_string(),
             };
 
             let json = serde_json::to_string(&sub).unwrap();

@@ -707,6 +707,8 @@ impl MockSubscriptionService {
             logo_url: req.logo_url,
             created_at: Utc::now(),
             updated_at: Utc::now(),
+
+            kind: "subscription".to_string(),
         };
 
         self.subscriptions
@@ -2215,6 +2217,8 @@ mod tests {
                 category_id: Some(Uuid::new_v4()),
                 notes: None,
                 logo_url: None,
+
+                kind: "subscription".to_string(),
             }
         }
 
@@ -2341,6 +2345,8 @@ mod tests {
 
                 first_payment: None,
                 clear_first_payment: false,
+
+                kind: None,
             };
             let result = mock.update(user_id, sub.id, req).await;
             assert!(result.is_ok());
@@ -2372,6 +2378,8 @@ mod tests {
 
                 first_payment: None,
                 clear_first_payment: false,
+
+                kind: None,
             };
             let result = mock.update(Uuid::new_v4(), Uuid::new_v4(), req).await;
             assert!(result.is_err());
@@ -2400,6 +2408,8 @@ mod tests {
 
                 first_payment: None,
                 clear_first_payment: false,
+
+                kind: None,
             };
             let result = mock.update(Uuid::new_v4(), Uuid::new_v4(), req).await;
             assert!(result.is_err());
@@ -2513,6 +2523,8 @@ mod tests {
                 logo_url: None,
                 created_at: Utc::now(),
                 updated_at: Utc::now(),
+
+                kind: "subscription".to_string(),
             };
             mock.add_subscription(sub);
             let result = mock.get_all(user_id).await.unwrap();
@@ -2542,6 +2554,8 @@ mod tests {
                 logo_url: None,
                 created_at: Utc::now(),
                 updated_at: Utc::now(),
+
+                kind: "subscription".to_string(),
             };
             let mock = MockSubscriptionService::with_subscriptions(vec![sub]);
             let result = mock.get_all(user_id).await.unwrap();
@@ -3483,6 +3497,8 @@ mod tests {
                 logo_url: None,
                 created_at: Utc::now(),
                 updated_at: Utc::now(),
+
+                kind: "subscription".to_string(),
             };
             let cloned = sub.clone();
             assert_eq!(cloned.name, sub.name);
@@ -3658,6 +3674,8 @@ mod tests {
                         logo_url: None,
 
                         first_payment: None,
+
+                        kind: "subscription".to_string(),
                     },
                 )
                 .await
@@ -3683,6 +3701,8 @@ mod tests {
 
                 first_payment: None,
                 clear_first_payment: false,
+
+                kind: None,
             };
             let result = mock.update(user_id, sub.id, req).await;
             assert!(result.is_ok());
@@ -4035,6 +4055,8 @@ mod tests {
                         logo_url: None,
 
                         first_payment: None,
+
+                        kind: "subscription".to_string(),
                     },
                 )
                 .await
@@ -4060,6 +4082,8 @@ mod tests {
 
                 first_payment: None,
                 clear_first_payment: false,
+
+                kind: None,
             };
             let result = mock.update(user_id, sub.id, req).await;
             assert!(result.is_ok());
@@ -4090,6 +4114,8 @@ mod tests {
                         logo_url: None,
 
                         first_payment: None,
+
+                        kind: "subscription".to_string(),
                     },
                 )
                 .await
@@ -4115,6 +4141,8 @@ mod tests {
 
                 first_payment: None,
                 clear_first_payment: false,
+
+                kind: None,
             };
             let result = mock.update(user_id, sub.id, req).await;
             assert!(result.is_ok());
@@ -4144,6 +4172,8 @@ mod tests {
                         logo_url: None,
 
                         first_payment: None,
+
+                        kind: "subscription".to_string(),
                     },
                 )
                 .await
@@ -4170,6 +4200,8 @@ mod tests {
 
                 first_payment: None,
                 clear_first_payment: false,
+
+                kind: None,
             };
             let result = mock.update(user_id, sub.id, req).await;
             assert!(result.is_ok());

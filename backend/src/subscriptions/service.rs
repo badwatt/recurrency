@@ -125,6 +125,11 @@ impl SubscriptionService {
             req.end_date,
         );
         let is_active = req.is_active.unwrap_or(true);
+        let kind = if req.kind == "budget" {
+            "budget"
+        } else {
+            "subscription"
+        };
 
         // Accounts are mandatory; fall back to the user's default for old clients.
         let account_id = if req.account_id.is_nil() {
@@ -146,9 +151,9 @@ impl SubscriptionService {
 
         let subscription = sqlx::query_as::<_, Subscription>(
             r#"
-            INSERT INTO subscriptions (id, user_id, account_id, category_id, name, amount, currency, frequency, schedule_day, schedule_month, recurrence, start_date, end_date, next_billing_date, is_active, notes, logo_url, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $18)
-            RETURNING id, user_id, account_id, category_id, name, amount, currency, frequency, schedule_day, schedule_month, recurrence, start_date, end_date, next_billing_date, is_active, notes, logo_url, created_at, updated_at
+            INSERT INTO subscriptions (id, user_id, account_id, category_id, name, amount, currency, frequency, schedule_day, schedule_month, recurrence, start_date, end_date, next_billing_date, is_active, notes, logo_url, kind, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $19)
+            RETURNING id, user_id, account_id, category_id, name, amount, currency, frequency, schedule_day, schedule_month, recurrence, start_date, end_date, next_billing_date, is_active, notes, logo_url, kind, created_at, updated_at
             "#,
         )
         .bind(Uuid::new_v4())
@@ -168,6 +173,7 @@ impl SubscriptionService {
         .bind(is_active)
         .bind(&req.notes)
         .bind(&req.logo_url)
+        .bind(kind)
         .bind(Utc::now())
         .fetch_one(pool)
         .await?;
@@ -262,7 +268,7 @@ impl SubscriptionService {
 
     pub async fn get_all(pool: &PgPool, user_id: Uuid) -> AppResult<Vec<Subscription>> {
         let mut subscriptions = sqlx::query_as::<_, Subscription>(
-            "SELECT id, user_id, account_id, category_id, name, amount, currency, frequency, schedule_day, schedule_month, recurrence, start_date, end_date, next_billing_date, is_active, notes, logo_url, created_at, updated_at FROM subscriptions WHERE user_id = $1 ORDER BY created_at DESC"
+            "SELECT id, user_id, account_id, category_id, name, amount, currency, frequency, schedule_day, schedule_month, recurrence, start_date, end_date, next_billing_date, is_active, notes, logo_url, kind, created_at, updated_at FROM subscriptions WHERE user_id = $1 ORDER BY created_at DESC"
         )
         .bind(user_id)
         .fetch_all(pool)
@@ -273,7 +279,7 @@ impl SubscriptionService {
 
     pub async fn get_by_id(pool: &PgPool, user_id: Uuid, id: Uuid) -> AppResult<Subscription> {
         let mut subscription = sqlx::query_as::<_, Subscription>(
-            "SELECT id, user_id, account_id, category_id, name, amount, currency, frequency, schedule_day, schedule_month, recurrence, start_date, end_date, next_billing_date, is_active, notes, logo_url, created_at, updated_at FROM subscriptions WHERE id = $1 AND user_id = $2"
+            "SELECT id, user_id, account_id, category_id, name, amount, currency, frequency, schedule_day, schedule_month, recurrence, start_date, end_date, next_billing_date, is_active, notes, logo_url, kind, created_at, updated_at FROM subscriptions WHERE id = $1 AND user_id = $2"
         )
         .bind(id)
         .bind(user_id)
@@ -304,6 +310,7 @@ impl SubscriptionService {
         let amount = req.amount.unwrap_or(existing.amount);
         let currency = req.currency.unwrap_or(existing.currency);
         let start_date = req.start_date.unwrap_or(existing.start_date);
+        let kind = req.kind.unwrap_or_else(|| existing.kind.clone());
         let end_date = if req.clear_end_date {
             None
         } else {
@@ -357,9 +364,9 @@ impl SubscriptionService {
                 schedule_day = $5, schedule_month = $6, recurrence = $7,
                 start_date = $8, end_date = $9, next_billing_date = $10,
                 account_id = $11, category_id = $12, is_active = $13,
-                notes = $14, logo_url = $15, updated_at = $16
-            WHERE id = $17 AND user_id = $18
-            RETURNING id, user_id, account_id, category_id, name, amount, currency, frequency, schedule_day, schedule_month, recurrence, start_date, end_date, next_billing_date, is_active, notes, logo_url, created_at, updated_at
+                notes = $14, logo_url = $15, kind = $16, updated_at = $17
+            WHERE id = $18 AND user_id = $19
+            RETURNING id, user_id, account_id, category_id, name, amount, currency, frequency, schedule_day, schedule_month, recurrence, start_date, end_date, next_billing_date, is_active, notes, logo_url, kind, created_at, updated_at
             "#,
         )
         .bind(&name)
@@ -377,6 +384,7 @@ impl SubscriptionService {
         .bind(is_active)
         .bind(&notes)
         .bind(&logo_url)
+        .bind(&kind)
         .bind(Utc::now())
         .bind(id)
         .bind(user_id)
@@ -430,7 +438,7 @@ impl SubscriptionService {
     ) -> AppResult<Vec<CalendarItem>> {
         // Get all active subscriptions
         let subscriptions = sqlx::query_as::<_, Subscription>(
-            "SELECT id, user_id, account_id, category_id, name, amount, currency, frequency, schedule_day, schedule_month, recurrence, start_date, end_date, next_billing_date, is_active, notes, logo_url, created_at, updated_at FROM subscriptions WHERE user_id = $1 AND is_active = true"
+            "SELECT id, user_id, account_id, category_id, name, amount, currency, frequency, schedule_day, schedule_month, recurrence, start_date, end_date, next_billing_date, is_active, notes, logo_url, kind, created_at, updated_at FROM subscriptions WHERE user_id = $1 AND is_active = true"
         )
         .bind(user_id)
         .fetch_all(pool)

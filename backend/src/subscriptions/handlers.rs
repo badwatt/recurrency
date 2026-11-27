@@ -799,6 +799,8 @@ fn resolve_subscription_name_unicode() {
         logo_url: None,
         created_at: chrono::Utc::now(),
         updated_at: chrono::Utc::now(),
+
+        kind: "subscription".to_string(),
     };
     let req = UpdateSubscriptionRequest {
         account_id: None,
@@ -820,6 +822,8 @@ fn resolve_subscription_name_unicode() {
 
         first_payment: None,
         clear_first_payment: false,
+
+        kind: None,
     };
     // Inline: name comes from req
     let name = req.name.clone().unwrap_or(existing.name.clone());
@@ -849,6 +853,8 @@ fn resolve_subscription_all_none_preserves_existing() {
         logo_url: Some("https://old.png".to_string()),
         created_at: chrono::Utc::now(),
         updated_at: chrono::Utc::now(),
+
+        kind: "subscription".to_string(),
     };
     let req = UpdateSubscriptionRequest {
         name: None,
@@ -870,6 +876,8 @@ fn resolve_subscription_all_none_preserves_existing() {
 
         first_payment: None,
         clear_first_payment: false,
+
+        kind: None,
     };
     // Inline: when all req fields are None, existing values are preserved
     let name = req.name.clone().unwrap_or(existing.name.clone());
@@ -901,6 +909,8 @@ fn resolve_subscription_partial_update_amount_only() {
         logo_url: None,
         created_at: chrono::Utc::now(),
         updated_at: chrono::Utc::now(),
+
+        kind: "subscription".to_string(),
     };
     let req = UpdateSubscriptionRequest {
         account_id: None,
@@ -922,6 +932,8 @@ fn resolve_subscription_partial_update_amount_only() {
 
         first_payment: None,
         clear_first_payment: false,
+
+        kind: None,
     };
     // Inline: name preserved, amount overridden
     let name = req.name.clone().unwrap_or(existing.name.clone());
@@ -953,6 +965,8 @@ fn resolve_subscription_start_date_change() {
         logo_url: None,
         created_at: chrono::Utc::now(),
         updated_at: chrono::Utc::now(),
+
+        kind: "subscription".to_string(),
     };
     let req = UpdateSubscriptionRequest {
         account_id: None,
@@ -974,6 +988,8 @@ fn resolve_subscription_start_date_change() {
 
         first_payment: None,
         clear_first_payment: false,
+
+        kind: None,
     };
     // Inline: start_date overridden from req
     let start_date = req.start_date.unwrap_or(existing.start_date);
