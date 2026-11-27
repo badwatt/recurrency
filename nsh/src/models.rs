@@ -51,6 +51,10 @@ pub struct Recurrence {
     pub dates: Vec<AnnualDate>,
 }
 
+fn default_kind() -> String {
+    "subscription".to_string()
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct Subscription {
     pub id: Uuid,
@@ -60,6 +64,8 @@ pub struct Subscription {
     pub amount: Decimal,
     pub currency: String,
     pub recurrence: Recurrence,
+    #[serde(default = "default_kind")]
+    pub kind: String,
     pub start_date: NaiveDate,
     pub next_billing_date: Option<NaiveDate>,
     pub end_date: Option<NaiveDate>,

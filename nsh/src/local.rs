@@ -197,6 +197,7 @@ pub fn create_subscription(req: &CreateSubscriptionRequest) -> Result<Subscripti
         amount: req.amount,
         currency: req.currency.clone(),
         recurrence: req.recurrence.clone(),
+        kind: req.kind.clone(),
         start_date: req.start_date,
         next_billing_date: req.first_payment.or(Some(req.start_date)),
         end_date: None,

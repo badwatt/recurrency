@@ -360,6 +360,7 @@ mod tests {
             name: "Streaming".to_string(),
             amount,
             currency: "EUR".to_string(),
+            kind: "subscription".to_string(),
             recurrence: Recurrence {
                 interval: 1,
                 unit: "month".to_string(),

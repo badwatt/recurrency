@@ -46,6 +46,7 @@ pub struct CreateSubscriptionRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub category_id: Option<Uuid>,
     pub recurrence: Recurrence,
+    pub kind: String,
     pub is_active: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub notes: Option<String>,
@@ -68,6 +69,7 @@ struct FormSignals {
     end_date: Signal<String>,
     currency: Signal<String>,
     interval: Signal<String>,
+    kind: Signal<String>,
     days: Signal<Vec<u8>>,
     weekdays: Signal<Vec<u8>>,
     annual_dates: Signal<Vec<AnnualDate>>,
@@ -144,6 +146,7 @@ pub fn subscriptions(
         auth.user.currency.clone()
     });
     let interval = signal("1".to_string());
+    let kind = signal("subscription".to_string());
     let days = signal(Vec::<u8>::new());
     let weekdays = signal(Vec::<u8>::new());
     let annual_dates = signal(Vec::<AnnualDate>::new());
@@ -169,6 +172,7 @@ pub fn subscriptions(
         end_date,
         currency: form_currency,
         interval,
+        kind,
         days,
         weekdays,
         annual_dates,
@@ -219,6 +223,7 @@ pub fn subscriptions(
             auth.user.currency.clone()
         });
         interval.set("1".to_string());
+        kind.set("subscription".to_string());
         days.set(vec![date.day() as u8]);
         weekdays.set(Vec::new());
         annual_dates.set(Vec::new());
@@ -485,6 +490,15 @@ fn open_edit_subscription(
 
 /// Opens the full subscription form over whichever page requested it.
 pub fn open_create_dialog(auth: AuthSession, modal: ui::ModalHost, date: Option<NaiveDate>) {
+    open_create_dialog_kind(auth, modal, date, "subscription");
+}
+
+pub fn open_create_dialog_kind(
+    auth: AuthSession,
+    modal: ui::ModalHost,
+    date: Option<NaiveDate>,
+    kind_value: &'static str,
+) {
     let server = crate::auth::stored_server();
     let token = auth.token.clone();
     let currency = if auth.user.currency.is_empty() {
@@ -512,6 +526,7 @@ pub fn open_create_dialog(auth: AuthSession, modal: ui::ModalHost, date: Option<
         end_date: signal(String::new()),
         currency: signal(currency),
         interval: signal("1".to_string()),
+        kind: signal(kind_value.to_string()),
         days: signal(vec![
             date.map_or_else(|| Local::now().day() as u8, |value| value.day() as u8),
         ]),
@@ -551,6 +566,7 @@ fn form(
         end_date,
         currency,
         interval,
+        kind,
         days,
         weekdays,
         annual_dates,
@@ -676,6 +692,7 @@ fn form(
                 currency: currency_value.clone(),
                 frequency: frequency_for(&unit_value).to_string(),
                 start_date: start_value,
+                kind: kind.get(),
                 first_payment,
                 end_date: end_value,
                 clear_first_payment: first_payment.is_none(),
@@ -762,6 +779,14 @@ fn form(
                 .pb(px(24.0))
                 .gap(px(10.0))
                 .child(ui::required_field("Name", name, "Netflix, Spotify, etc."))
+                .child(string_select(StringSelectProps::new(
+                    "Type",
+                    kind,
+                    vec![
+                        ("subscription".to_string(), "Subscription".to_string()),
+                        ("budget".to_string(), "Budget".to_string()),
+                    ],
+                )))
                 .child(
                     view()
                         .w_full()
@@ -2239,6 +2264,7 @@ fn card_actions(
                 currency: currency.clone(),
                 frequency: frequency_for(&original.recurrence.unit).to_string(),
                 start_date: original.start_date,
+                kind: original.kind.clone(),
                 first_payment: original.next_billing_date,
                 end_date: original.end_date,
                 clear_first_payment: false,
@@ -2494,6 +2520,7 @@ mod tests {
             amount: Decimal::from(10),
             currency: "EUR".to_string(),
             recurrence: Recurrence::default(),
+            kind: "subscription".to_string(),
             start_date: date(2026, 1, 1),
             next_billing_date: Some(date(2026, 11, 23)),
             end_date: None,
@@ -2760,6 +2787,7 @@ mod tests {
             currency: "EUR".to_string(),
             frequency: "monthly".to_string(),
             start_date: date(2026, 11, 22),
+            kind: "subscription".to_string(),
             first_payment: Some(date(2026, 11, 22)),
             end_date: None,
             clear_first_payment: false,
