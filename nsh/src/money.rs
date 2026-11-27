@@ -10,9 +10,11 @@ use crate::auth::AuthSession;
 use crate::components::card::card;
 use crate::components::converted_amount::converted_amount;
 use crate::components::empty_state::empty_state;
+use crate::components::entity_icon::entity_icon_colored;
 use crate::components::logo_wash::logo_wash;
 use crate::components::page_header::page_header;
 use crate::components::search_input::search_input;
+use crate::components::sort_menu::{SortOption, sort_menu};
 use crate::format::format_date;
 use crate::ui;
 
@@ -186,6 +188,23 @@ impl Filter {
     }
 }
 
+/// How the money list is ordered: a field id from the sort menu and whether
+/// it goes from high to low.
+#[derive(Clone, PartialEq)]
+struct Sort {
+    field: String,
+    descending: bool,
+}
+
+/// An account or a category as a card shows it: its name, the colour and the
+/// icon it was given in Settings.
+#[derive(Clone, PartialEq, Default)]
+struct Tagged {
+    name: String,
+    color: Option<String>,
+    icon: Option<String>,
+}
+
 #[derive(Clone, PartialEq)]
 struct Item {
     id: Uuid,
@@ -194,10 +213,13 @@ struct Item {
     amount: Decimal,
     currency: String,
     logo: Option<String>,
-    account: String,
-    category: String,
+    account: Tagged,
+    category: Tagged,
     detail: String,
     progress: Option<f32>,
+    /// The date the row shows: next billing, the payment's own date or the
+    /// next debt instalment. Sorting by date uses it.
+    date: Option<chrono::NaiveDate>,
     updated: i64,
 }
 
@@ -248,6 +270,11 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
     let search = signal(String::new());
     let list_view = signal(crate::view_state::money_list());
     effect(move || crate::view_state::save_money_list(list_view.get()));
+    let sort_field = signal(crate::view_state::money_sort_field());
+    let sort_desc = signal(crate::view_state::money_sort_descending());
+    effect(move || {
+        crate::view_state::save_money_sort(sort_field.get(), sort_desc.get());
+    });
     let bulk = signal(false);
     let selected = signal(Vec::<(Kind, Uuid)>::new());
     let loading = move || {
@@ -261,6 +288,10 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
             .or_else(|| transactions.error())
             .or_else(|| debts.error())
     };
+    let order = move || Sort {
+        field: sort_field.get(),
+        descending: sort_desc.get(),
+    };
     let items = move || {
         build_items(
             subscriptions,
@@ -268,6 +299,7 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
             debts,
             search.get(),
             filter.get(),
+            order(),
         )
     };
     let open_add = {
@@ -796,6 +828,16 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
                         }
                     },
                 ))
+                .child(sort_menu(
+                    sort_field,
+                    sort_desc,
+                    vec![
+                        SortOption::new("date", "Date"),
+                        SortOption::new("name", "Name"),
+                        SortOption::new("amount", "Amount"),
+                        SortOption::new("updated", "Last modified"),
+                    ],
+                ))
                 .child(
                     view()
                         .flex_row()
@@ -822,6 +864,7 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
                 debts,
                 search.get(),
                 Filter::All,
+                order(),
             )
         }))
         .child(
@@ -1117,12 +1160,75 @@ fn chips(filter: Signal<Filter>, items: impl Fn() -> Vec<Item> + Copy + 'static)
         .into_element()
 }
 
+/// Size of the icon inside an account or category chip.
+const ICON_SIZE: f32 = 11.0;
+
+/// The account `id` names, as a card shows it.
+fn tagged_account(accounts: &[crate::models::Account], id: Uuid) -> Tagged {
+    accounts
+        .iter()
+        .find(|a| a.id == id)
+        .map_or_else(Tagged::default, |a| Tagged {
+            name: a.name.clone(),
+            color: a.color.clone(),
+            icon: a.icon.clone(),
+        })
+}
+
+/// The category `id` names, as a card shows it.
+fn tagged_category(categories: &[crate::models::Category], id: Uuid) -> Tagged {
+    categories
+        .iter()
+        .find(|c| c.id == id)
+        .map_or_else(Tagged::default, |c| Tagged {
+            name: c.name.clone(),
+            color: c.color.clone(),
+            icon: c.icon.clone(),
+        })
+}
+
+/// One account or category on a card: its icon and name in its own colour.
+fn tagged_chip(tagged: &Tagged) -> AnyElement {
+    if tagged.name.trim().is_empty() {
+        return view().h(px(0.0)).into_element();
+    }
+    let color = tagged
+        .color
+        .clone()
+        .unwrap_or_else(|| crate::components::color_picker::DEFAULT_COLOR.to_string());
+    let fill = color.clone();
+    let border = color.clone();
+    let mut chip = view()
+        .h(px(22.0))
+        .px(px(7.0))
+        .flex_row()
+        .items_center()
+        .gap(px(5.0))
+        .rounded(px(6.0))
+        .border(px(1.0))
+        .border_color(move || {
+            AdaptiveColor::from(rgba((crate::theme::parse_hex(&border) << 8) | 0x26))
+        })
+        .bg(move || rgba((crate::theme::parse_hex(&fill) << 8) | 0x15));
+    if let Some(icon) = tagged.icon.clone().filter(|icon| !icon.trim().is_empty()) {
+        chip = chip.child(entity_icon_colored(&icon, signal(color.clone()), ICON_SIZE));
+    }
+    chip.child(
+        text(tagged.name.clone())
+            .text_size(px(11.0))
+            .font_weight(FontWeight::MEDIUM)
+            .text_color(move || rgba((crate::theme::parse_hex(&color) << 8) | 0xff)),
+    )
+    .into_element()
+}
+
 fn build_items(
     subscriptions: Resource<api::SubscriptionsData, String>,
     transactions: Resource<api::TransactionsData, String>,
     debts: Resource<api::DebtsData, String>,
     search: String,
     filter: Filter,
+    order: Sort,
 ) -> Vec<Item> {
     let needle = search.trim().to_lowercase();
     let mut items = Vec::new();
@@ -1144,13 +1250,8 @@ fn build_items(
             } else {
                 Kind::Subscription
             };
-            let account_row = data.accounts.iter().find(|a| a.id == sub.account_id);
-            let account = account_row.map_or_else(String::new, |a| a.name.clone());
-            let category = data
-                .categories
-                .iter()
-                .find(|c| c.id == sub.category_id)
-                .map_or_else(String::new, |c| c.name.clone());
+            let account = tagged_account(&data.accounts, sub.account_id);
+            let category = tagged_category(&data.categories, sub.category_id);
             let detail = sub.next_billing_date.map_or_else(
                 || "No next date".to_string(),
                 |date| format!("Next: {}", format_date(date)),
@@ -1166,19 +1267,15 @@ fn build_items(
                 category,
                 detail,
                 progress: None,
+                date: sub.next_billing_date,
                 updated: sub.updated_at.map_or(0, |d| d.timestamp_millis()),
             });
         }
     }
     if let Some(data) = transactions.get() {
         for tx in data.transactions {
-            let account_row = data.accounts.iter().find(|a| a.id == tx.account_id);
-            let account = account_row.map_or_else(String::new, |a| a.name.clone());
-            let category = data
-                .categories
-                .iter()
-                .find(|c| c.id == tx.category_id)
-                .map_or_else(String::new, |c| c.name.clone());
+            let account = tagged_account(&data.accounts, tx.account_id);
+            let category = tagged_category(&data.categories, tx.category_id);
             items.push(Item {
                 id: tx.id,
                 kind: Kind::Transaction,
@@ -1190,19 +1287,15 @@ fn build_items(
                 category,
                 detail: format_date(tx.date),
                 progress: None,
+                date: Some(tx.date),
                 updated: tx.updated_at.map_or(0, |d| d.timestamp_millis()),
             });
         }
     }
     if let Some(data) = debts.get() {
         for debt in data.debts {
-            let account_row = data.accounts.iter().find(|a| a.id == debt.account_id);
-            let account = account_row.map_or_else(String::new, |a| a.name.clone());
-            let category = data
-                .categories
-                .iter()
-                .find(|c| c.id == debt.category_id)
-                .map_or_else(String::new, |c| c.name.clone());
+            let account = tagged_account(&data.accounts, debt.account_id);
+            let category = tagged_category(&data.categories, debt.category_id);
             let paid = debt.total_amount - debt.remaining_amount;
             let ratio = if debt.total_amount > Decimal::ZERO {
                 (paid / debt.total_amount)
@@ -1226,6 +1319,7 @@ fn build_items(
                     |date| format!("Next: {}", format_date(date)),
                 ),
                 progress: Some(ratio.clamp(0.0, 1.0)),
+                date: debt.next_payment_date,
                 updated: debt.updated_at.map_or(0, |d| d.timestamp_millis()),
             });
         }
@@ -1234,10 +1328,18 @@ fn build_items(
         filter.accepts(item.kind)
             && (needle.is_empty()
                 || item.name.to_lowercase().contains(&needle)
-                || item.account.to_lowercase().contains(&needle)
-                || item.category.to_lowercase().contains(&needle))
+                || item.account.name.to_lowercase().contains(&needle)
+                || item.category.name.to_lowercase().contains(&needle))
     });
-    items.sort_by_key(|item| std::cmp::Reverse(item.updated));
+    items.sort_by(|a, b| match order.field.as_str() {
+        "name" => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+        "amount" => a.amount.cmp(&b.amount),
+        "date" => a.date.cmp(&b.date),
+        _ => a.updated.cmp(&b.updated),
+    });
+    if order.descending {
+        items.reverse();
+    }
     items
 }
 
@@ -1274,9 +1376,9 @@ fn type_badge(kind: Kind) -> AnyElement {
 /// stacking when a fixed 360 px would not fit next to its neighbour.
 /// The header's action slot clips its children: the Add button needs room.
 const HEADER_ACTION_WIDTH: f32 = 120.0;
-const GRID_CARD_BASIS: f32 = 290.0;
-const GRID_CARD_MIN: f32 = 260.0;
-const GRID_CARD_MAX: f32 = 420.0;
+const GRID_CARD_BASIS: f32 = 320.0;
+const GRID_CARD_MIN: f32 = 300.0;
+const GRID_CARD_MAX: f32 = 460.0;
 /// Cards wear the colour of the account (or the category) the item belongs to,
 /// so a tile is recognisable before reading its name.
 
@@ -1286,6 +1388,7 @@ fn grid_card(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyEle
     let name = item.name.clone();
     let detail = item.detail.clone();
     let account = item.account.clone();
+    let category = item.category.clone();
     let kind = item.kind;
     let progress = item.progress;
     card()
@@ -1356,24 +1459,25 @@ fn grid_card(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyEle
             view()
                 .w_full()
                 .flex_row()
+                .flex_wrap()
                 .items_center()
                 .justify_between()
                 .gap(px(8.0))
-                .child(type_badge(kind))
+                .child(
+                    view()
+                        .flex_row()
+                        .flex_wrap()
+                        .items_center()
+                        .gap(px(6.0))
+                        .child(type_badge(kind))
+                        .child(tagged_chip(&account))
+                        .child(tagged_chip(&category)),
+                )
                 .child(
                     view()
                         .flex_row()
                         .items_center()
                         .gap(px(4.0))
-                        .child(
-                            text(if account.is_empty() {
-                                item.category.clone()
-                            } else {
-                                account.clone()
-                            })
-                            .text_size(px(11.0))
-                            .text_color(move || theme().muted_foreground),
-                        )
                         .when(kind == Kind::Debt, |row| {
                             row.child(crate::ui::mini_icon_button(
                                 asset!("icons/card.svg"),
@@ -1483,7 +1587,17 @@ fn list_row(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyElem
                                 .text_color(move || theme().muted_foreground),
                         ),
                 )
-                .child(type_badge(kind)),
+                .child(
+                    view()
+                        .flex_row()
+                        .flex_wrap()
+                        .items_center()
+                        .justify_end()
+                        .gap(px(6.0))
+                        .child(tagged_chip(&item.account))
+                        .child(tagged_chip(&item.category))
+                        .child(type_badge(kind)),
+                ),
         )
         .child(
             view()
