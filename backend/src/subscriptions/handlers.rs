@@ -412,6 +412,8 @@ mod tests {
             logo_url: Some("https://logo.netflix.com".to_string()),
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
+
+            kind: "subscription".to_string(),
         };
         let json = serde_json::to_string(&resp).unwrap();
         assert!(json.contains("Netflix"));
@@ -520,6 +522,8 @@ mod tests {
                 logo_url: None,
                 created_at: chrono::Utc::now(),
                 updated_at: chrono::Utc::now(),
+
+                kind: "subscription".to_string(),
             };
             let json = serde_json::to_string(&resp).unwrap();
             assert!(json.contains(currency));
@@ -549,6 +553,8 @@ mod tests {
             logo_url: None,
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
+
+            kind: "subscription".to_string(),
         };
         let json = serde_json::to_string(&resp).unwrap();
         // Either no notes field or notes is null
@@ -581,6 +587,8 @@ mod tests {
             logo_url: None,
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
+
+            kind: "subscription".to_string(),
         };
         let json = serde_json::to_string(&resp).unwrap();
         // logo_url is either not present or null

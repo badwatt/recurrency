@@ -402,6 +402,8 @@ mod tests {
             logo_url: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
+
+            kind: "subscription".to_string(),
         };
         let json = serde_json::to_value(&resp).unwrap();
         assert!(json.get("id").is_some());
@@ -459,6 +461,8 @@ mod tests {
             logo_url: Some("https://logo.clearbit.com/netflix.com".to_string()),
             created_at: Utc::now(),
             updated_at: Utc::now(),
+
+            kind: "subscription".to_string(),
         };
         let json = serde_json::to_value(&resp).unwrap();
         assert!(json.get("logo_url").is_some());
@@ -487,6 +491,8 @@ mod tests {
             logo_url: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
+
+            kind: "subscription".to_string(),
         };
         assert!(!resp.is_active);
         assert!(resp.notes.is_some());
@@ -570,6 +576,8 @@ mod tests {
             logo_url: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
+
+            kind: "subscription".to_string(),
         };
         assert!(resp.next_billing_date.is_some());
     }
@@ -596,6 +604,8 @@ mod tests {
             logo_url: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
+
+            kind: "subscription".to_string(),
         };
         assert!(resp.next_billing_date.is_none());
     }
