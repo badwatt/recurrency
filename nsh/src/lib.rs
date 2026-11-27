@@ -244,7 +244,7 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
         .child(
             scroll()
                 .flex_1()
-                .pr(px(10.0))
+                .pr(move || if compact.get() { px(0.0) } else { px(10.0) })
                 .element_ref(&page_scroll)
                 .on_scroll(move |event: &ScrollEvent| {
                     let offset = event.offset.y.0;
