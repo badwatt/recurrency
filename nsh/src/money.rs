@@ -40,18 +40,30 @@ thread_local! {
         const { std::cell::RefCell::new(None) };
     static MONEY_DELETE: std::cell::RefCell<Option<std::rc::Rc<dyn Fn(Kind, Uuid)>>> =
         const { std::cell::RefCell::new(None) };
+    static MONEY_DUPLICATE: std::cell::RefCell<Option<std::rc::Rc<dyn Fn(Kind, Uuid)>>> =
+        const { std::cell::RefCell::new(None) };
 }
 
 fn set_money_actions(
     edit: std::rc::Rc<dyn Fn(Kind, Uuid)>,
     delete: std::rc::Rc<dyn Fn(Kind, Uuid)>,
+    duplicate: std::rc::Rc<dyn Fn(Kind, Uuid)>,
 ) {
     MONEY_EDIT.with(|slot| *slot.borrow_mut() = Some(edit));
     MONEY_DELETE.with(|slot| *slot.borrow_mut() = Some(delete));
+    MONEY_DUPLICATE.with(|slot| *slot.borrow_mut() = Some(duplicate));
 }
 
 fn money_edit(kind: Kind, id: Uuid) {
     MONEY_EDIT.with(|slot| {
+        if let Some(action) = slot.borrow().as_ref() {
+            action(kind, id);
+        }
+    });
+}
+
+fn money_duplicate(kind: Kind, id: Uuid) {
+    MONEY_DUPLICATE.with(|slot| {
         if let Some(action) = slot.borrow().as_ref() {
             action(kind, id);
         }
@@ -244,7 +256,132 @@ pub fn money(
             }
         }
     };
-    let edit_action: std::rc::Rc<dyn Fn(Kind, Uuid)> = std::rc::Rc::new(edit_action);    let delete_item = {
+    let edit_action: std::rc::Rc<dyn Fn(Kind, Uuid)> = std::rc::Rc::new(edit_action);    let duplicate_item = {
+        let server = server.clone();
+        let token = token.clone();
+        let duplicate_currency = currency.clone();
+        move |kind: Kind, id: Uuid| {
+            let server = server.clone();
+            let token = token.clone();
+            let currency = duplicate_currency.clone();
+            let subscriptions = subscriptions;
+            let transactions = transactions;
+            let debts = debts;
+            spawn(async move {
+                let result = match kind {
+                    Kind::Subscription | Kind::Budget => {
+                        let Some(item) = subscriptions
+                            .get()
+                            .unwrap_or_default()
+                            .subscriptions
+                            .into_iter()
+                            .find(|item| item.id == id)
+                        else { return };
+                        let frequency = match item.recurrence.unit.as_str() {
+                            "day" => "daily",
+                            "week" => "weekly",
+                            "year" => "yearly",
+                            _ => "monthly",
+                        };
+                        api::create_subscription(
+                            server,
+                            token,
+                            &crate::subscriptions::CreateSubscriptionRequest {
+                                name: format!("{} (copy)", item.name),
+                                amount: item.amount,
+                                currency: item.currency,
+                                frequency: frequency.to_string(),
+                                start_date: item.start_date,
+                                kind: item.kind,
+                                first_payment: item.next_billing_date,
+                                end_date: item.end_date,
+                                clear_first_payment: false,
+                                clear_end_date: false,
+                                account_id: item.account_id,
+                                category_id: Some(item.category_id),
+                                recurrence: item.recurrence,
+                                is_active: item.is_active,
+                                notes: item.notes,
+                                logo_url: item.logo_url,
+                            },
+                        )
+                        .await
+                        .map(|_| ())
+                    }
+                    Kind::Transaction => {
+                        let Some(item) = transactions
+                            .get()
+                            .unwrap_or_default()
+                            .transactions
+                            .into_iter()
+                            .find(|item| item.id == id)
+                        else { return };
+                        api::create_transaction(
+                            server,
+                            token,
+                            &crate::transactions::CreateTransactionRequest {
+                                name: format!("{} (copy)", item.name),
+                                amount: item.amount,
+                                currency: item.currency,
+                                date: item.date,
+                                account_id: item.account_id,
+                                category_id: Some(item.category_id),
+                                notes: item.notes,
+                                logo_url: item.logo_url,
+                            },
+                        )
+                        .await
+                        .map(|_| ())
+                    }
+                    Kind::Debt => {
+                        let Some(item) = debts
+                            .get()
+                            .unwrap_or_default()
+                            .debts
+                            .into_iter()
+                            .find(|item| item.id == id)
+                        else { return };
+                        api::create_debt(
+                            server,
+                            token,
+                            &crate::debts::CreateDebtRequest {
+                                name: format!("{} (copy)", item.name),
+                                total_amount: item.total_amount,
+                                currency: item.currency,
+                                account_id: item.account_id,
+                                category_id: Some(item.category_id),
+                                debt_type: item.debt_type,
+                                monthly_payment: item.monthly_payment,
+                                payment_days: item.payment_days,
+                                recurrence: Some(item.recurrence),
+                                first_payment: item.next_payment_date,
+                                clear_first_payment: false,
+                                start_date: Some(item.start_date),
+                                notes: item.notes,
+                                logo_url: item.logo_url,
+                            },
+                        )
+                        .await
+                        .map(|_| ())
+                    }
+                };
+                match result {
+                    Ok(()) => {
+                        crate::components::toast::success("Duplicated.");
+                        subscriptions.refetch();
+                        transactions.refetch();
+                        debts.refetch();
+                        ui::bump_data();
+                    }
+                    Err(message) => crate::components::toast::error(message),
+                }
+                let _ = currency;
+            });
+        }
+    };
+    let duplicate_item: std::rc::Rc<dyn Fn(Kind, Uuid)> = std::rc::Rc::new(duplicate_item);
+
+    let delete_item = {
         let server = server.clone();
         let token = token.clone();
         move |kind: Kind, id: Uuid| {
@@ -296,7 +433,7 @@ pub fn money(
         }
     };
     let delete_item: std::rc::Rc<dyn Fn(Kind, Uuid)> = std::rc::Rc::new(delete_item);
-    set_money_actions(edit_action.clone(), delete_item.clone());
+    set_money_actions(edit_action.clone(), delete_item.clone(), duplicate_item);
     view()
         .w_full()
         .flex_col()
@@ -722,6 +859,7 @@ fn grid_card(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyEle
                                 .text_color(move || theme().muted_foreground),
                         )
                         .child(crate::ui::mini_icon_button(asset!("icons/pencil.svg"), false, move || money_edit(kind, item_id)))
+                        .child(crate::ui::mini_icon_button(asset!("icons/copy.svg"), false, move || money_duplicate(kind, item_id)))
                         .child(crate::ui::mini_icon_button(asset!("icons/trash.svg"), true, move || money_delete(kind, item_id))),
                 ),
         )
@@ -815,6 +953,7 @@ fn list_row(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyElem
                 .child(
                     view().flex_row().items_center().gap(px(4.0))
                         .child(crate::ui::mini_icon_button(asset!("icons/pencil.svg"), false, move || money_edit(kind, item_id)))
+                        .child(crate::ui::mini_icon_button(asset!("icons/copy.svg"), false, move || money_duplicate(kind, item_id)))
                         .child(crate::ui::mini_icon_button(asset!("icons/trash.svg"), true, move || money_delete(kind, item_id))),
                 )
                 .when_some(progress, |row, value| {
