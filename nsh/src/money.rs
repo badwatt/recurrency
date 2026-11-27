@@ -43,6 +43,8 @@ thread_local! {
         const { std::cell::RefCell::new(None) };
     static MONEY_NOTES: std::cell::RefCell<Option<std::rc::Rc<dyn Fn(Kind, Uuid)>>> =
         const { std::cell::RefCell::new(None) };
+    static MONEY_PAY: std::cell::RefCell<Option<std::rc::Rc<dyn Fn(Kind, Uuid)>>> =
+        const { std::cell::RefCell::new(None) };
     static MONEY_SELECTED: std::cell::RefCell<Option<Signal<Vec<(Kind, Uuid)>>>> =
         const { std::cell::RefCell::new(None) };
     static MONEY_BULK: std::cell::RefCell<Option<Signal<bool>>> = const { std::cell::RefCell::new(None) };
@@ -53,6 +55,7 @@ fn set_money_actions(
     delete: std::rc::Rc<dyn Fn(Kind, Uuid)>,
     duplicate: std::rc::Rc<dyn Fn(Kind, Uuid)>,
     notes: std::rc::Rc<dyn Fn(Kind, Uuid)>,
+    pay: std::rc::Rc<dyn Fn(Kind, Uuid)>,
     selected: Signal<Vec<(Kind, Uuid)>>,
     bulk: Signal<bool>,
 ) {
@@ -60,6 +63,7 @@ fn set_money_actions(
     MONEY_DELETE.with(|slot| *slot.borrow_mut() = Some(delete));
     MONEY_DUPLICATE.with(|slot| *slot.borrow_mut() = Some(duplicate));
     MONEY_NOTES.with(|slot| *slot.borrow_mut() = Some(notes));
+    MONEY_PAY.with(|slot| *slot.borrow_mut() = Some(pay));
     MONEY_SELECTED.with(|slot| *slot.borrow_mut() = Some(selected));
     MONEY_BULK.with(|slot| *slot.borrow_mut() = Some(bulk));
 }
@@ -70,6 +74,18 @@ fn money_notes(kind: Kind, id: Uuid) {
         return;
     }
     MONEY_NOTES.with(|slot| {
+        if let Some(action) = slot.borrow().as_ref() {
+            action(kind, id);
+        }
+    });
+}
+
+fn money_pay(kind: Kind, id: Uuid) {
+    if money_bulk_active() {
+        money_toggle(kind, id);
+        return;
+    }
+    MONEY_PAY.with(|slot| {
         if let Some(action) = slot.borrow().as_ref() {
             action(kind, id);
         }
@@ -623,11 +639,116 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
         }
     };
     let notes_item: std::rc::Rc<dyn Fn(Kind, Uuid)> = std::rc::Rc::new(notes_item);
+    let pay_item = {
+        let server = server.clone();
+        let token = token.clone();
+        move |kind: Kind, id: Uuid| {
+            if kind != Kind::Debt {
+                return;
+            }
+            let Some(debt) = debts
+                .get()
+                .unwrap_or_default()
+                .debts
+                .into_iter()
+                .find(|item| item.id == id)
+            else {
+                return;
+            };
+            let amount = signal(
+                debt.monthly_payment
+                    .unwrap_or(debt.remaining_amount)
+                    .to_string(),
+            );
+            let paid_on = signal(chrono::Local::now().date_naive().to_string());
+            let note = signal(String::new());
+            let error = signal(String::new());
+            let server = server.clone();
+            let token = token.clone();
+            modal.open(move || {
+                let save_server = server.clone();
+                let save_token = token.clone();
+                crate::components::dialog::dialog(
+                    crate::components::dialog::DialogProps::new(
+                        "Record payment",
+                        "Reduce the remaining balance of this debt.",
+                        move || modal.close(),
+                    )
+                    .width(460.0)
+                    .body(
+                        view()
+                            .w_full()
+                            .p(px(20.0))
+                            .gap(px(12.0))
+                            .child(ui::numeric_field("Amount", amount, "250"))
+                            .child(ui::date_field("Paid on", paid_on))
+                            .child(ui::field("Note", note, "Optional"))
+                            .child(
+                                text(move || error.get())
+                                    .text_size(px(11.0))
+                                    .text_color(move || theme().destructive),
+                            )
+                            .into_element(),
+                    )
+                    .footer(
+                        view()
+                            .w_full()
+                            .flex_row()
+                            .justify_end()
+                            .gap(px(8.0))
+                            .child(crate::ui::action_button("Cancel", false, move || modal.close()))
+                            .child(crate::ui::action_button("Pay", false, move || {
+                                let Ok(value) = amount.get().trim().parse::<Decimal>() else {
+                                    error.set("Enter a valid amount.".to_string());
+                                    return;
+                                };
+                                let Ok(date) = chrono::NaiveDate::parse_from_str(
+                                    paid_on.get().trim(),
+                                    "%Y-%m-%d",
+                                ) else {
+                                    error.set("Enter a valid date.".to_string());
+                                    return;
+                                };
+                                let note_value = (!note.get().trim().is_empty()).then(|| note.get());
+                                let server = save_server.clone();
+                                let token = save_token.clone();
+                                spawn(async move {
+                                    match api::record_debt_payment(
+                                        server,
+                                        token,
+                                        id,
+                                        &crate::debts::RecordDebtPaymentRequest {
+                                            amount: value,
+                                            paid_on: date,
+                                            note: note_value,
+                                        },
+                                    )
+                                    .await
+                                    {
+                                        Ok(_) => {
+                                            crate::components::toast::success("Payment recorded.");
+                                            debts.refetch();
+                                            ui::bump_data();
+                                        }
+                                        Err(message) => crate::components::toast::error(message),
+                                    }
+                                    modal.close();
+                                });
+                            }))
+                            .into_element(),
+                    ),
+                )
+                .into_element()
+            });
+        }
+    };
+    let pay_item: std::rc::Rc<dyn Fn(Kind, Uuid)> = std::rc::Rc::new(pay_item);
     set_money_actions(
         edit_action.clone(),
         delete_item.clone(),
         duplicate_item,
         notes_item,
+        pay_item,
         selected,
         bulk,
     );
@@ -693,7 +814,10 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
                         .on_press(open_add.clone()),
                 )),
         )
-        .child(chips(filter, items.clone()))
+        .child(chips(
+            filter,
+            move || build_items(subscriptions, transactions, debts, search.get(), Filter::All),
+        ))
         .child(
             when(
                 move || bulk.get(),
@@ -1200,6 +1324,11 @@ fn grid_card(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyEle
                             .text_size(px(11.0))
                             .text_color(move || theme().muted_foreground),
                         )
+                        .when(kind == Kind::Debt, |row| {
+                            row.child(crate::ui::action_button("Pay", false, move || {
+                                money_pay(kind, item_id)
+                            }))
+                        })
                         .child(crate::ui::mini_icon_button(
                             asset!("icons/notes.svg"),
                             false,
@@ -1333,6 +1462,11 @@ fn list_row(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyElem
                             } else {
                                 PointerEvents::Auto
                             }
+                        })
+                        .when(kind == Kind::Debt, |row| {
+                            row.child(crate::ui::action_button("Pay", false, move || {
+                                money_pay(kind, item_id)
+                            }))
                         })
                         .child(crate::ui::mini_icon_button(
                             asset!("icons/notes.svg"),

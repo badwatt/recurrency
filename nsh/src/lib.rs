@@ -236,6 +236,7 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
         let _ = route.get();
         bottom_hidden.set(false);
         last_scroll.replace(0.0);
+        crate::ui::close_menu();
         page_scroll.scroll_to_offset(px(0.0), false);
     });
     view()
