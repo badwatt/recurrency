@@ -10,6 +10,7 @@ use crate::auth::AuthSession;
 use crate::components::card::card;
 use crate::components::converted_amount::converted_amount;
 use crate::components::empty_state::empty_state;
+use crate::components::logo_wash::logo_wash;
 use crate::components::page_header::page_header;
 use crate::components::search_input::search_input;
 use crate::format::format_date;
@@ -193,7 +194,6 @@ struct Item {
     amount: Decimal,
     currency: String,
     logo: Option<String>,
-    color: String,
     account: String,
     category: String,
     detail: String,
@@ -993,11 +993,10 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
                                         items,
                                         |item| {
                                             format!(
-                                                "{}-{}-{}-{}",
+                                                "{}-{}-{}",
                                                 item.kind.label(),
                                                 item.id,
-                                                item.updated,
-                                                item.color
+                                                item.updated
                                             )
                                         },
                                         move |item, _| {
@@ -1020,11 +1019,10 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
                                     items,
                                     |item| {
                                         format!(
-                                            "{}-{}-{}-{}",
+                                            "{}-{}-{}",
                                             item.kind.label(),
                                             item.id,
-                                            item.updated,
-                                            item.color
+                                            item.updated
                                         )
                                     },
                                     move |item, _| {
@@ -1119,23 +1117,6 @@ fn chips(filter: Signal<Filter>, items: impl Fn() -> Vec<Item> + Copy + 'static)
         .into_element()
 }
 
-/// Colours the cards fall back to when neither the category nor the account
-/// has one: the same stable palette the Dioxus avatars use, keyed by the
-/// entity's name, so every card is identifiable at a glance.
-const FALLBACK_COLORS: [&str; 8] = [
-    "#6366f1", "#8b5cf6", "#ec4899", "#f97316", "#14b8a6", "#0ea5e9", "#22c55e", "#eab308",
-];
-
-fn fallback_color(seed: &str) -> String {
-    if seed.is_empty() {
-        return "#6b7280".to_string();
-    }
-    let hash = seed
-        .bytes()
-        .fold(0usize, |acc, byte| acc.wrapping_add(usize::from(byte)));
-    FALLBACK_COLORS[hash % FALLBACK_COLORS.len()].to_string()
-}
-
 fn build_items(
     subscriptions: Resource<api::SubscriptionsData, String>,
     transactions: Resource<api::TransactionsData, String>,
@@ -1165,19 +1146,6 @@ fn build_items(
             };
             let account_row = data.accounts.iter().find(|a| a.id == sub.account_id);
             let account = account_row.map_or_else(String::new, |a| a.name.clone());
-            let color = data
-                .categories
-                .iter()
-                .find(|c| c.id == sub.category_id)
-                .and_then(|c| c.color.clone())
-                .or_else(|| account_row.and_then(|a| a.color.clone()))
-                .unwrap_or_else(|| {
-                    fallback_color(if account.is_empty() {
-                        &sub.name
-                    } else {
-                        &account
-                    })
-                });
             let category = data
                 .categories
                 .iter()
@@ -1194,7 +1162,6 @@ fn build_items(
                 amount: sub.amount,
                 currency: sub.currency,
                 logo: sub.logo_url,
-                color,
                 account,
                 category,
                 detail,
@@ -1207,19 +1174,6 @@ fn build_items(
         for tx in data.transactions {
             let account_row = data.accounts.iter().find(|a| a.id == tx.account_id);
             let account = account_row.map_or_else(String::new, |a| a.name.clone());
-            let color = data
-                .categories
-                .iter()
-                .find(|c| c.id == tx.category_id)
-                .and_then(|c| c.color.clone())
-                .or_else(|| account_row.and_then(|a| a.color.clone()))
-                .unwrap_or_else(|| {
-                    fallback_color(if account.is_empty() {
-                        &tx.name
-                    } else {
-                        &account
-                    })
-                });
             let category = data
                 .categories
                 .iter()
@@ -1232,7 +1186,6 @@ fn build_items(
                 amount: tx.amount,
                 currency: tx.currency,
                 logo: tx.logo_url,
-                color,
                 account,
                 category,
                 detail: format_date(tx.date),
@@ -1245,19 +1198,6 @@ fn build_items(
         for debt in data.debts {
             let account_row = data.accounts.iter().find(|a| a.id == debt.account_id);
             let account = account_row.map_or_else(String::new, |a| a.name.clone());
-            let color = data
-                .categories
-                .iter()
-                .find(|c| c.id == debt.category_id)
-                .and_then(|c| c.color.clone())
-                .or_else(|| account_row.and_then(|a| a.color.clone()))
-                .unwrap_or_else(|| {
-                    fallback_color(if account.is_empty() {
-                        &debt.name
-                    } else {
-                        &account
-                    })
-                });
             let category = data
                 .categories
                 .iter()
@@ -1279,7 +1219,6 @@ fn build_items(
                 amount: debt.remaining_amount,
                 currency: debt.currency,
                 logo: debt.logo_url,
-                color,
                 account,
                 category,
                 detail: debt.next_payment_date.map_or_else(
@@ -1340,35 +1279,6 @@ const GRID_CARD_MIN: f32 = 260.0;
 const GRID_CARD_MAX: f32 = 420.0;
 /// Cards wear the colour of the account (or the category) the item belongs to,
 /// so a tile is recognisable before reading its name.
-const CARD_TINT_ALPHA: u32 = 0x1f;
-const CARD_BORDER_ALPHA: u32 = 0x4d;
-
-/// The account (or category) an item belongs to, as the small coloured chip
-/// the cards wear: its colour is the one the entity's icon was given.
-fn entity_chip(label: String, color: String) -> AnyElement {
-    view()
-        .h(px(20.0))
-        .px(px(6.0))
-        .items_center()
-        .justify_center()
-        .rounded(px(6.0))
-        .border(px(1.0))
-        .border_color({
-            let chip = color.clone();
-            move || AdaptiveColor::from(rgba((crate::theme::parse_hex(&chip) << 8) | 0x26))
-        })
-        .bg({
-            let chip = color.clone();
-            move || rgba((crate::theme::parse_hex(&chip) << 8) | 0x15)
-        })
-        .child(
-            text(label)
-                .text_size(px(11.0))
-                .font_weight(FontWeight::MEDIUM)
-                .text_color(move || rgba(crate::theme::parse_hex(&color) << 8)),
-        )
-        .into_element()
-}
 
 fn grid_card(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyElement {
     let item_id = item.id;
@@ -1378,9 +1288,9 @@ fn grid_card(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyEle
     let account = item.account.clone();
     let kind = item.kind;
     let progress = item.progress;
-    let card_color = item.color.clone();
-    let border_color = card_color.clone();
     card()
+        .relative()
+        .overflow_hidden()
         .basis(px(GRID_CARD_BASIS))
         .flex_grow(1.0)
         .flex_shrink(1.0)
@@ -1389,12 +1299,12 @@ fn grid_card(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyEle
         .p(px(18.0))
         .gap(px(12.0))
         .cursor_pointer()
-        .bg(move || rgba((crate::theme::parse_hex(&card_color) << 8) | CARD_TINT_ALPHA))
+        .child(logo_wash(logo.clone()))
         .border_color(move || {
             if money_is_selected(kind, item_id) {
                 theme().primary
             } else {
-                rgba((crate::theme::parse_hex(&border_color) << 8) | CARD_BORDER_ALPHA).into()
+                theme().border
             }
         })
         .on_press(move || {
@@ -1455,14 +1365,15 @@ fn grid_card(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyEle
                         .flex_row()
                         .items_center()
                         .gap(px(4.0))
-                        .child(entity_chip(
-                            if account.is_empty() {
+                        .child(
+                            text(if account.is_empty() {
                                 item.category.clone()
                             } else {
                                 account.clone()
-                            },
-                            item.color.clone(),
-                        ))
+                            })
+                            .text_size(px(11.0))
+                            .text_color(move || theme().muted_foreground),
+                        )
                         .when(kind == Kind::Debt, |row| {
                             row.child(crate::ui::mini_icon_button(
                                 asset!("icons/card.svg"),
@@ -1520,21 +1431,21 @@ fn list_row(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyElem
     let detail = item.detail.clone();
     let kind = item.kind;
     let progress = item.progress;
-    let card_color = item.color.clone();
-    let border_color = card_color.clone();
     view()
+        .relative()
+        .overflow_hidden()
         .w_full()
         .rounded(px(12.0))
         .cursor_pointer()
         .border(px(1.0))
+        .child(logo_wash(logo.clone()))
         .border_color(move || {
             if money_is_selected(kind, item_id) {
                 theme().primary
             } else {
-                rgba((crate::theme::parse_hex(&border_color) << 8) | CARD_BORDER_ALPHA).into()
+                theme().border
             }
         })
-        .bg(move || rgba((crate::theme::parse_hex(&card_color) << 8) | CARD_TINT_ALPHA))
         .p(px(14.0))
         .on_press(move || {
             if money_bulk_active() {
@@ -1764,7 +1675,7 @@ fn add_menu(auth: std::rc::Rc<AuthSession>, modal: ui::ModalHost) -> AnyElement 
 
 #[cfg(test)]
 mod tests {
-    use super::{FALLBACK_COLORS, Filter, Kind, fallback_color};
+    use super::{Filter, Kind};
 
     #[test]
     fn the_type_filters_match_their_own_kind_only() {
@@ -1774,13 +1685,6 @@ mod tests {
         assert!(Filter::Budget.accepts(Kind::Budget));
         assert!(Filter::Transaction.accepts(Kind::Transaction));
         assert!(Filter::Debt.accepts(Kind::Debt));
-    }
-
-    #[test]
-    fn cards_fall_back_to_a_stable_palette_colour() {
-        assert_eq!(fallback_color("Test"), fallback_color("Test"));
-        assert!(FALLBACK_COLORS.contains(&fallback_color("Test").as_str()));
-        assert_eq!(fallback_color(""), "#6b7280");
     }
 
     #[test]

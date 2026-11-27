@@ -173,10 +173,15 @@ mod tests {
 
 /// Compact popover used by the top-bar paintbrush, matching the Dioxus theme
 /// menu: grouped dark/light palettes, swatches and immediate persistence.
+/// Width of the two-column theme menu, and the height it needs to show every
+/// catalogue entry without scrolling: the anchor keeps it on screen.
+pub const MENU_WIDTH: f32 = 384.0;
+pub const MENU_HEIGHT: f32 = 620.0;
+
 pub fn theme_menu() -> AnyElement {
     let selected = signal(crate::theme::saved());
     view()
-        .w(px(384.0))
+        .w(px(MENU_WIDTH))
         .p(px(8.0))
         .gap(px(2.0))
         .rounded(px(8.0))

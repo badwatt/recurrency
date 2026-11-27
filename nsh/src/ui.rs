@@ -3,6 +3,7 @@
 
 use crate::Route;
 use crate::auth::AuthSession;
+use crate::components::theme_picker;
 use nsh_base::{button, theme};
 use nsh_core::element::Owner;
 use nsh_core::prelude::*;
@@ -572,6 +573,9 @@ pub fn top_bar(route: Signal<Route>, auth: AuthSession, compact: Signal<bool>) -
         )
 }
 
+/// Gap a floating menu keeps from the surface's edges.
+const EDGE: f32 = 8.0;
+
 fn theme_action() -> impl IntoElement {
     view()
         .cursor_pointer()
@@ -582,17 +586,25 @@ fn theme_action() -> impl IntoElement {
         .w(px(36.0))
         .rounded(px(6.0))
         .on_press(move |event: &PressEvent| {
-            if crate::ui::compact_active() {
-                open_menu(MenuPlacement::FullScreen, || {
-                    crate::components::theme_picker::theme_fullscreen()
+            let page = event.page_position;
+            let local = event.position;
+            let window = window();
+            let panel = theme_picker::MENU_WIDTH;
+            let anchor_left = page.x.0 - local.x.0;
+            let top = page.y.0 - local.y.0 + 54.0;
+            let left = (anchor_left + 36.0 - panel).max(EDGE);
+            // A menu that would hang off the surface becomes the sheet: it is
+            // never cut, whatever the screen it runs on.
+            let fits = !crate::ui::compact_active()
+                && left + panel <= window.width.0 - EDGE
+                && top + theme_picker::MENU_HEIGHT <= window.height.0 - EDGE;
+            if fits {
+                open_menu(MenuPlacement::At { top, left }, || {
+                    theme_picker::theme_menu()
                 });
             } else {
-                let page = event.page_position;
-                let local = event.position;
-                let top = page.y.0 - local.y.0 + 54.0;
-                let left = (page.x.0 - local.x.0 + 18.0 - 192.0).max(8.0);
-                open_menu(MenuPlacement::At { top, left }, || {
-                    crate::components::theme_picker::theme_menu()
+                open_menu(MenuPlacement::FullScreen, || {
+                    theme_picker::theme_fullscreen()
                 });
             }
         })
