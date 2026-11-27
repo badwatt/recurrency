@@ -182,11 +182,8 @@ pub fn money(
         )
     };
     let open_add = {
-        let auth = std::rc::Rc::new(auth.clone());
-        move || {
-            let auth = auth.clone();
-            modal.open(move || add_menu(auth.clone(), modal));
-        }
+        let auth = auth.clone();
+        move || open_money_add(auth.clone(), modal)
     };
     let edit_route = {
         move |kind: Kind, _id: Uuid| {
@@ -791,6 +788,11 @@ fn list_row(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyElem
                 }),
         )
         .into_element()
+}
+
+pub fn open_money_add(auth: AuthSession, modal: ui::ModalHost) {
+    let auth = std::rc::Rc::new(auth);
+    modal.open(move || add_menu(auth.clone(), modal));
 }
 
 fn add_menu(auth: std::rc::Rc<AuthSession>, modal: ui::ModalHost) -> AnyElement {

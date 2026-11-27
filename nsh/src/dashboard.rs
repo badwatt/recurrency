@@ -243,82 +243,35 @@ fn actions(
 ) -> impl IntoElement {
     view()
         .flex_row()
-        .flex_wrap()
         .items_center()
         .gap(px(8.0))
         .mb(px(-2.0))
-        .child(action_in_place(
-            "Add subscription",
-            true,
-            auth.clone(),
-            modal,
-            asset!("icons/plus.svg"),
-        ))
-        .child(action_in_place(
-            "Add transaction",
-            false,
-            auth.clone(),
-            modal,
-            asset!("icons/transactions.svg"),
-        ))
-        .child(action_in_place(
-            "Add debt",
-            false,
-            auth,
-            modal,
-            asset!("icons/plus.svg"),
-        ))
-}
-
-fn action_in_place(
-    label: &'static str,
-    primary: bool,
-    _auth: AuthSession,
-    _modal: ui::ModalHost,
-    icon: ImageAsset,
-) -> impl IntoElement {
-    button()
-        .cursor_pointer()
-        .items_center()
-        .justify_center()
-        .h(px(42.0))
-        .w(px(160.0))
-        .rounded(px(8.0))
-        .border(px(1.0))
-        .border_color(move || theme().border)
-        .bg(move || {
-            if primary {
-                theme().primary
-            } else {
-                theme().card
-            }
-        })
-        .active(|state| state.opacity(0.8))
-        .flex_row()
-        .gap(px(6.0))
-        .on_press(move || match label {
-            "Add subscription" => crate::ui::create_subscription(None),
-            "Add transaction" => crate::ui::create_transaction(None),
-            _ => crate::ui::create_debt(None),
-        })
-        .child(image(icon).size(px(14.0)).tint_color(move || {
-            if primary {
-                theme().primary_foreground
-            } else {
-                theme().foreground
-            }
-        }))
         .child(
-            text(label)
-                .text_size(px(14.0))
-                .font_weight(FontWeight::SEMIBOLD)
-                .text_color(move || {
-                    if primary {
-                        theme().primary_foreground
-                    } else {
-                        theme().foreground
-                    }
-                }),
+            button()
+                .cursor_pointer()
+                .items_center()
+                .justify_center()
+                .h(px(42.0))
+                .px(px(18.0))
+                .rounded(px(8.0))
+                .border(px(1.0))
+                .border_color(move || theme().primary)
+                .bg(move || theme().primary)
+                .active(|state| state.opacity(0.8))
+                .flex_row()
+                .gap(px(6.0))
+                .on_press(move || crate::money::open_money_add(auth.clone(), modal))
+                .child(
+                    image(asset!("icons/plus.svg"))
+                        .size(px(14.0))
+                        .tint_color(move || theme().primary_foreground),
+                )
+                .child(
+                    text("Add")
+                        .text_size(px(14.0))
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(move || theme().primary_foreground),
+                ),
         )
 }
 
