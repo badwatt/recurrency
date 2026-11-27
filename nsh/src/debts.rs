@@ -48,6 +48,9 @@ pub struct CreateDebtRequest {
     pub notes: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub logo_url: Option<String>,
+    /// Editing a form whose logo field is empty removes the stored image.
+    #[serde(default)]
+    pub clear_logo: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -1017,6 +1020,7 @@ fn form(
                 start_date: Some(start_value),
                 notes: (!notes.get().trim().is_empty()).then(|| notes.get()),
                 logo_url: (!logo_url.get().trim().is_empty()).then(|| logo_url.get()),
+                clear_logo: editing.get().is_some() && logo_url.get().trim().is_empty(),
             };
             saving.set(true);
             form_error.set(String::new());
@@ -1031,6 +1035,9 @@ fn form(
                 };
                 match result {
                     Ok(saved) => {
+                        // The dialog's signals die with it: they are written
+                        // before anything closes the form.
+                        saving.set(false);
                         form_open.set(false);
                         editing.set(None);
                         if let Some(mut snapshot) = data.get() {
@@ -1047,9 +1054,11 @@ fn form(
                         crate::ui::bump_data();
                         modal.close();
                     }
-                    Err(message) => form_error.set(message),
+                    Err(message) => {
+                        form_error.set(message);
+                        saving.set(false);
+                    }
                 }
-                saving.set(false);
             });
         }
     };
@@ -1084,8 +1093,8 @@ fn form(
     );
     crate::components::dialog::dialog(
         crate::components::dialog::DialogProps::new(title, "", move || {
-            form_open.set(false);
             editing.set(None);
+            form_open.set(false);
             modal.close();
         })
         .title_element(title_element)
@@ -1260,8 +1269,8 @@ fn form(
                         .border_color(move || theme().border)
                         .bg(move || theme().card)
                         .on_press(move || {
-                            form_open.set(false);
                             editing.set(None);
+                            form_open.set(false);
                             modal.close();
                         })
                         .child(
@@ -2034,6 +2043,7 @@ mod tests {
             start_date: Some(date(2026, 11, 22)),
             notes: Some("Loan paperwork".to_string()),
             logo_url: Some("https://example.test/logo.png".to_string()),
+            clear_logo: false,
         };
         let value = serde_json::to_value(request).expect("request serializes");
         assert_eq!(value["debt_type"], "automatic");

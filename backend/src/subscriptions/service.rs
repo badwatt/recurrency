@@ -12,7 +12,8 @@ use crate::subscriptions::models::{
     CreateSubscriptionRequest, Subscription, UpdateSubscriptionRequest,
 };
 use crate::subscriptions::recurrence::{
-    first_billing_date, legacy_from_recurrence, next_occurrence_on_or_after, occurrences_in_month,
+    first_billing_date, first_payment_change, legacy_from_recurrence, next_occurrence_on_or_after,
+    occurrences_in_month,
     recurrence_from_legacy, validate_recurrence,
 };
 
@@ -327,7 +328,8 @@ impl SubscriptionService {
             || start_date != existing.start_date
             || end_date != existing.end_date;
 
-        let next_billing_date = if let Some(first) = req.first_payment {
+        let first_payment = first_payment_change(req.first_payment, existing.start_date);
+        let next_billing_date = if let Some(first) = first_payment {
             if end_date.is_some_and(|end| first > end) {
                 None
             } else {
@@ -355,7 +357,11 @@ impl SubscriptionService {
             Some(value) => Some(value),
             None => existing.notes,
         };
-        let logo_url = req.logo_url.or(existing.logo_url);
+        let logo_url = if req.clear_logo {
+            None
+        } else {
+            req.logo_url.or(existing.logo_url)
+        };
 
         let subscription = sqlx::query_as::<_, Subscription>(
             r#"
@@ -475,8 +481,7 @@ impl SubscriptionService {
                     frequency: sub.frequency.clone(),
                     billing_date,
                     is_active: sub.is_active,
-                    logo_url: sub.logo_url.clone(),
-                });
+                    logo_url: sub.logo_url.clone(),});
             }
         }
 
@@ -495,8 +500,7 @@ pub struct CalendarItem {
     pub frequency: String,
     pub billing_date: NaiveDate,
     pub is_active: bool,
-    pub logo_url: Option<String>,
-}
+    pub logo_url: Option<String>,}
 
 pub(crate) fn sort_calendar_items(items: &mut [CalendarItem]) {
     items.sort_by_key(|a| a.billing_date);
@@ -1039,8 +1043,7 @@ mod tests {
                 frequency: "weekly".to_string(),
                 billing_date: NaiveDate::from_ymd_opt(2024, 1, 20).unwrap(),
                 is_active: true,
-                logo_url: None,
-            },
+                logo_url: None,},
             CalendarItem {
                 subscription_id: uid,
                 name: "A".to_string(),
@@ -1049,8 +1052,7 @@ mod tests {
                 frequency: "weekly".to_string(),
                 billing_date: NaiveDate::from_ymd_opt(2024, 1, 10).unwrap(),
                 is_active: true,
-                logo_url: None,
-            },
+                logo_url: None,},
         ];
         sort_calendar_items(&mut items);
         assert!(items[0].billing_date < items[1].billing_date);
@@ -1076,8 +1078,7 @@ mod tests {
             frequency: "monthly".to_string(),
             billing_date: NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
             is_active: true,
-            logo_url: None,
-        }];
+            logo_url: None,}];
         sort_calendar_items(&mut items);
         assert_eq!(items.len(), 1);
     }
@@ -1095,8 +1096,7 @@ mod tests {
             frequency: "monthly".to_string(),
             billing_date: NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
             is_active: true,
-            logo_url: Some("https://logo.com/netflix.png".to_string()),
-        };
+            logo_url: Some("https://logo.com/netflix.png".to_string()),};
         assert_eq!(item.name, "Netflix");
         assert_eq!(
             item.logo_url.as_deref(),
@@ -1115,8 +1115,7 @@ mod tests {
             frequency: "monthly".to_string(),
             billing_date: NaiveDate::from_ymd_opt(2024, 7, 1).unwrap(),
             is_active: true,
-            logo_url: None,
-        };
+            logo_url: None,};
         assert!(item.logo_url.is_none());
     }
 
@@ -1131,8 +1130,7 @@ mod tests {
             frequency: "monthly".to_string(),
             billing_date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             is_active: false,
-            logo_url: None,
-        };
+            logo_url: None,};
         assert!(!item.is_active);
     }
 
@@ -1147,8 +1145,7 @@ mod tests {
             frequency: "weekly".to_string(),
             billing_date: NaiveDate::from_ymd_opt(2024, 3, 1).unwrap(),
             is_active: true,
-            logo_url: None,
-        };
+            logo_url: None,};
         let json = serde_json::to_value(&item).unwrap();
         assert_eq!(json["name"], "Test");
         assert_eq!(json["currency"], "USD");
@@ -1311,8 +1308,7 @@ mod tests {
                 frequency: "weekly".to_string(),
                 billing_date: NaiveDate::from_ymd_opt(2024, 1, 25).unwrap(),
                 is_active: true,
-                logo_url: None,
-            },
+                logo_url: None,},
             CalendarItem {
                 subscription_id: uid,
                 name: "A".to_string(),
@@ -1321,8 +1317,7 @@ mod tests {
                 frequency: "weekly".to_string(),
                 billing_date: NaiveDate::from_ymd_opt(2024, 1, 5).unwrap(),
                 is_active: true,
-                logo_url: None,
-            },
+                logo_url: None,},
             CalendarItem {
                 subscription_id: uid,
                 name: "B".to_string(),
@@ -1331,8 +1326,7 @@ mod tests {
                 frequency: "weekly".to_string(),
                 billing_date: NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
                 is_active: true,
-                logo_url: None,
-            },
+                logo_url: None,},
         ];
         sort_calendar_items(&mut items);
         assert_eq!(items[0].name, "A");
@@ -1424,8 +1418,7 @@ mod tests {
                 frequency: "weekly".to_string(),
                 billing_date: NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
                 is_active: true,
-                logo_url: None,
-            },
+                logo_url: None,},
             CalendarItem {
                 subscription_id: uid1,
                 name: "A".to_string(),
@@ -1434,8 +1427,7 @@ mod tests {
                 frequency: "weekly".to_string(),
                 billing_date: NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
                 is_active: true,
-                logo_url: None,
-            },
+                logo_url: None,},
         ];
         sort_calendar_items(&mut items);
         assert_eq!(items.len(), 2);
@@ -1551,8 +1543,7 @@ mod tests {
             frequency: "monthly".to_string(),
             billing_date: NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
             is_active: true,
-            logo_url: None,
-        };
+            logo_url: None,};
         let json = serde_json::to_string(&item).unwrap();
         assert!(json.contains("T"));
     }

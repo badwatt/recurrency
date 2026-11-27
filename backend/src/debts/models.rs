@@ -30,8 +30,7 @@ pub struct Debt {
     pub subscription_id: Option<Uuid>,
     pub is_active: bool,
     pub notes: Option<String>,
-    pub logo_url: Option<String>,
-    pub created_at: DateTime<Utc>,
+    pub logo_url: Option<String>,pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
 
@@ -67,8 +66,7 @@ pub struct CreateDebtRequest {
     #[serde(default)]
     pub start_date: Option<NaiveDate>,
     pub notes: Option<String>,
-    pub logo_url: Option<String>,
-}
+    pub logo_url: Option<String>,}
 
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct UpdateDebtRequest {
@@ -89,7 +87,9 @@ pub struct UpdateDebtRequest {
     pub notes: Option<String>,
     #[serde(default)]
     pub clear_notes: bool,
-    pub logo_url: Option<String>,
+    pub logo_url: Option<String>,/// The form emptied the logo: it is removed, not left as it was.
+    #[serde(default)]
+    pub clear_logo: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -119,8 +119,7 @@ pub struct DebtResponse {
     pub subscription_id: Option<Uuid>,
     pub is_active: bool,
     pub notes: Option<String>,
-    pub logo_url: Option<String>,
-    pub created_at: DateTime<Utc>,
+    pub logo_url: Option<String>,pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
 
@@ -145,8 +144,7 @@ impl From<Debt> for DebtResponse {
             subscription_id: debt.subscription_id,
             is_active: debt.is_active,
             notes: debt.notes,
-            logo_url: debt.logo_url,
-            created_at: debt.created_at,
+            logo_url: debt.logo_url,created_at: debt.created_at,
             updated_at: debt.updated_at,
         }
     }

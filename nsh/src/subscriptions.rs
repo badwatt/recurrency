@@ -52,6 +52,9 @@ pub struct CreateSubscriptionRequest {
     pub notes: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub logo_url: Option<String>,
+    /// Editing a form whose logo field is empty removes the stored image.
+    #[serde(default)]
+    pub clear_logo: bool,
 }
 
 #[derive(Serialize)]
@@ -761,6 +764,7 @@ fn form(
                 is_active: active.get(),
                 notes: (!notes.get().trim().is_empty()).then(|| notes.get()),
                 logo_url: (!logo_url.get().trim().is_empty()).then(|| logo_url.get()),
+                clear_logo: editing.get().is_some() && logo_url.get().trim().is_empty(),
             };
             saving.set(true);
             form_error.set(String::new());
@@ -775,6 +779,9 @@ fn form(
                 };
                 match result {
                     Ok(saved) => {
+                        // The dialog's signals die with it: they are written
+                        // before anything closes the form.
+                        saving.set(false);
                         form_open.set(false);
                         editing.set(None);
                         if let Some(mut snapshot) = data.get() {
@@ -797,9 +804,9 @@ fn form(
                     Err(message) => {
                         crate::components::toast::error(message.clone());
                         form_error.set(message);
+                        saving.set(false);
                     }
                 }
-                saving.set(false);
             });
         }
     };
@@ -838,8 +845,8 @@ fn form(
     };
     crate::components::dialog::dialog(
         crate::components::dialog::DialogProps::new(title, subtitle, move || {
-            form_open.set(false);
             editing.set(None);
+            form_open.set(false);
             modal.close();
         })
         .title_element(title_element)
@@ -977,8 +984,8 @@ fn form(
                         .border_color(move || theme().border)
                         .bg(move || theme().card)
                         .on_press(move || {
-                            form_open.set(false);
                             editing.set(None);
+                            form_open.set(false);
                             modal.close();
                         })
                         .child(
@@ -2341,6 +2348,7 @@ fn card_actions(
                 is_active: original.is_active,
                 notes: None,
                 logo_url: original.logo_url.clone(),
+                clear_logo: false,
             };
             let server_value = server.get();
             let token_value = token.get();
@@ -2864,6 +2872,7 @@ mod tests {
             is_active: true,
             notes: None,
             logo_url: None,
+            clear_logo: false,
         };
         let json = serde_json::to_value(request).expect("request serializes");
         assert_eq!(json["frequency"], "monthly");

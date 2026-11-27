@@ -63,8 +63,7 @@ pub struct Subscription {
     pub next_billing_date: Option<NaiveDate>,
     pub is_active: bool,
     pub notes: Option<String>,
-    pub logo_url: Option<String>,
-    pub created_at: DateTime<Utc>,
+    pub logo_url: Option<String>,pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
 
@@ -96,8 +95,7 @@ pub struct CreateSubscriptionRequest {
     pub account_id: Uuid,
     pub category_id: Option<Uuid>,
     pub notes: Option<String>,
-    pub logo_url: Option<String>,
-}
+    pub logo_url: Option<String>,}
 
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct UpdateSubscriptionRequest {
@@ -123,7 +121,9 @@ pub struct UpdateSubscriptionRequest {
     pub category_id: Option<Uuid>,
     pub is_active: Option<bool>,
     pub notes: Option<String>,
-    pub logo_url: Option<String>,
+    pub logo_url: Option<String>,/// The form emptied the logo: it is removed, not left as it was.
+    #[serde(default)]
+    pub clear_logo: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -145,8 +145,7 @@ pub struct SubscriptionResponse {
     pub next_billing_date: Option<NaiveDate>,
     pub is_active: bool,
     pub notes: Option<String>,
-    pub logo_url: Option<String>,
-    pub created_at: DateTime<Utc>,
+    pub logo_url: Option<String>,pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
 
@@ -170,8 +169,7 @@ impl From<Subscription> for SubscriptionResponse {
             next_billing_date: s.next_billing_date,
             is_active: s.is_active,
             notes: s.notes,
-            logo_url: s.logo_url,
-            created_at: s.created_at,
+            logo_url: s.logo_url,created_at: s.created_at,
             updated_at: s.updated_at,
         }
     }
@@ -226,9 +224,7 @@ mod tests {
             end_date: None,
             category_id: None,
             notes: None,
-            logo_url: None,
-
-            first_payment: None,
+            logo_url: None,first_payment: None,
 
             kind: "subscription".to_string(),
         };
@@ -251,9 +247,7 @@ mod tests {
             account_id: Uuid::new_v4(),
             category_id: None,
             notes: None,
-            logo_url: None,
-
-            first_payment: None,
+            logo_url: None,first_payment: None,
 
             kind: "subscription".to_string(),
         };
@@ -276,9 +270,7 @@ mod tests {
             end_date: None,
             category_id: None,
             notes: None,
-            logo_url: None,
-
-            first_payment: None,
+            logo_url: None,first_payment: None,
 
             kind: "subscription".to_string(),
         };
@@ -303,12 +295,11 @@ mod tests {
             category_id: None,
             is_active: None,
             notes: None,
-            logo_url: None,
-
-            first_payment: None,
+            logo_url: None,first_payment: None,
             clear_first_payment: false,
 
             kind: None,
+            clear_logo: false,
         };
         assert!(req.name.is_none());
         assert!(req.amount.is_none());
@@ -333,12 +324,11 @@ mod tests {
             category_id: None,
             is_active: Some(false),
             notes: None,
-            logo_url: None,
-
-            first_payment: None,
+            logo_url: None,first_payment: None,
             clear_first_payment: false,
 
             kind: None,
+            clear_logo: false,
         };
         assert_eq!(req.name.as_deref(), Some("New Name"));
         assert_eq!(req.frequency.as_deref(), Some("yearly"));
@@ -367,8 +357,7 @@ mod tests {
             next_billing_date: Some(NaiveDate::from_ymd_opt(2024, 2, 1).unwrap()),
             is_active: true,
             notes: Some("notes".to_string()),
-            logo_url: None,
-            created_at: Utc::now(),
+            logo_url: None,created_at: Utc::now(),
             updated_at: Utc::now(),
 
             kind: "subscription".to_string(),
@@ -399,8 +388,7 @@ mod tests {
             next_billing_date: None,
             is_active: true,
             notes: None,
-            logo_url: None,
-            created_at: Utc::now(),
+            logo_url: None,created_at: Utc::now(),
             updated_at: Utc::now(),
 
             kind: "subscription".to_string(),
@@ -429,9 +417,7 @@ mod tests {
                 end_date: None,
                 category_id: None,
                 notes: None,
-                logo_url: None,
-
-                first_payment: None,
+                logo_url: None,first_payment: None,
 
                 kind: "subscription".to_string(),
             };
@@ -458,8 +444,7 @@ mod tests {
             next_billing_date: None,
             is_active: true,
             notes: None,
-            logo_url: Some("https://logo.clearbit.com/netflix.com".to_string()),
-            created_at: Utc::now(),
+            logo_url: Some("https://logo.clearbit.com/netflix.com".to_string()),created_at: Utc::now(),
             updated_at: Utc::now(),
 
             kind: "subscription".to_string(),
@@ -488,8 +473,7 @@ mod tests {
             next_billing_date: Some(NaiveDate::from_ymd_opt(2024, 1, 1).unwrap()),
             is_active: false,
             notes: Some("Cancelled in December".to_string()),
-            logo_url: None,
-            created_at: Utc::now(),
+            logo_url: None,created_at: Utc::now(),
             updated_at: Utc::now(),
 
             kind: "subscription".to_string(),
@@ -515,9 +499,7 @@ mod tests {
             account_id: Uuid::new_v4(),
             category_id: Some(cat_id),
             notes: None,
-            logo_url: None,
-
-            first_payment: None,
+            logo_url: None,first_payment: None,
 
             kind: "subscription".to_string(),
         };
@@ -543,12 +525,11 @@ mod tests {
             category_id: None,
             is_active: Some(true),
             notes: None,
-            logo_url: None,
-
-            first_payment: None,
+            logo_url: None,first_payment: None,
             clear_first_payment: false,
 
             kind: None,
+            clear_logo: false,
         };
         assert!(req.next_billing_date.is_some());
         assert_eq!(req.is_active, Some(true));
@@ -573,8 +554,7 @@ mod tests {
             next_billing_date: Some(NaiveDate::from_ymd_opt(2024, 6, 20).unwrap()),
             is_active: true,
             notes: None,
-            logo_url: None,
-            created_at: Utc::now(),
+            logo_url: None,created_at: Utc::now(),
             updated_at: Utc::now(),
 
             kind: "subscription".to_string(),
@@ -601,8 +581,7 @@ mod tests {
             next_billing_date: None,
             is_active: true,
             notes: None,
-            logo_url: None,
-            created_at: Utc::now(),
+            logo_url: None,created_at: Utc::now(),
             updated_at: Utc::now(),
 
             kind: "subscription".to_string(),

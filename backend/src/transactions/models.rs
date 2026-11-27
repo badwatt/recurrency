@@ -15,8 +15,7 @@ pub struct Transaction {
     pub currency: String,
     pub date: NaiveDate,
     pub notes: Option<String>,
-    pub logo_url: Option<String>,
-    pub created_at: DateTime<Utc>,
+    pub logo_url: Option<String>,pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
 
@@ -30,8 +29,7 @@ pub struct CreateTransactionRequest {
     pub account_id: Uuid,
     pub category_id: Option<Uuid>,
     pub notes: Option<String>,
-    pub logo_url: Option<String>,
-}
+    pub logo_url: Option<String>,}
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct UpdateTransactionRequest {
@@ -42,8 +40,7 @@ pub struct UpdateTransactionRequest {
     pub account_id: Option<Uuid>,
     pub category_id: Option<Uuid>,
     pub notes: Option<String>,
-    pub logo_url: Option<String>,
-}
+    pub logo_url: Option<String>,}
 
 #[derive(Debug, Serialize)]
 pub struct TransactionResponse {
@@ -56,8 +53,7 @@ pub struct TransactionResponse {
     pub currency: String,
     pub date: NaiveDate,
     pub notes: Option<String>,
-    pub logo_url: Option<String>,
-    pub created_at: DateTime<Utc>,
+    pub logo_url: Option<String>,pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
 
@@ -73,8 +69,7 @@ impl From<Transaction> for TransactionResponse {
             currency: t.currency,
             date: t.date,
             notes: t.notes,
-            logo_url: t.logo_url,
-            created_at: t.created_at,
+            logo_url: t.logo_url,created_at: t.created_at,
             updated_at: t.updated_at,
         }
     }
@@ -94,8 +89,7 @@ mod tests {
             date: NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
             category_id: None,
             notes: Some("Morning coffee".to_string()),
-            logo_url: None,
-        };
+            logo_url: None,};
         assert_eq!(req.name, "Coffee");
         assert!(req.category_id.is_none());
     }
@@ -110,8 +104,7 @@ mod tests {
             date: None,
             category_id: None,
             notes: None,
-            logo_url: None,
-        };
+            logo_url: None,};
         assert!(req.name.is_none());
         assert!(req.amount.is_none());
     }
@@ -126,8 +119,7 @@ mod tests {
             account_id: None,
             category_id: None,
             notes: Some("Updated notes".to_string()),
-            logo_url: None,
-        };
+            logo_url: None,};
         assert_eq!(req.name.as_deref(), Some("New Name"));
         assert_eq!(req.notes.as_deref(), Some("Updated notes"));
     }
@@ -147,8 +139,7 @@ mod tests {
             currency: "USD".to_string(),
             date: NaiveDate::from_ymd_opt(2024, 3, 10).unwrap(),
             notes: None,
-            logo_url: None,
-            created_at: Utc::now(),
+            logo_url: None,created_at: Utc::now(),
             updated_at: Utc::now(),
         };
         let json = serde_json::to_value(&resp).unwrap();
@@ -171,8 +162,7 @@ mod tests {
             currency: "EUR".to_string(),
             date: NaiveDate::from_ymd_opt(2024, 1, 15).unwrap(),
             notes: Some("latte".to_string()),
-            logo_url: Some("https://logo.com/c.png".to_string()),
-            created_at: Utc::now(),
+            logo_url: Some("https://logo.com/c.png".to_string()),created_at: Utc::now(),
             updated_at: Utc::now(),
         };
         let resp = TransactionResponse::from(t);
@@ -191,8 +181,7 @@ mod tests {
             account_id: Uuid::new_v4(),
             category_id: None,
             notes: None,
-            logo_url: None,
-        };
+            logo_url: None,};
         assert!(req.category_id.is_none());
         assert!(req.notes.is_none());
     }
@@ -209,8 +198,7 @@ mod tests {
             currency: "USD".to_string(),
             date: NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
             notes: Some("Prime membership".to_string()),
-            logo_url: Some("https://logo.com/amazon.png".to_string()),
-            created_at: Utc::now(),
+            logo_url: Some("https://logo.com/amazon.png".to_string()),created_at: Utc::now(),
             updated_at: Utc::now(),
         };
         assert!(t.logo_url.is_some());
@@ -229,8 +217,7 @@ mod tests {
             currency: "EUR".to_string(),
             date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             notes: None,
-            logo_url: None,
-            created_at: Utc::now(),
+            logo_url: None,created_at: Utc::now(),
             updated_at: Utc::now(),
         };
         assert!(t.notes.is_none());
@@ -248,8 +235,7 @@ mod tests {
             account_id: Uuid::new_v4(),
             category_id: Some(cat_id),
             notes: Some("Restaurant".to_string()),
-            logo_url: None,
-        };
+            logo_url: None,};
         assert_eq!(req.category_id, Some(cat_id));
         assert_eq!(req.notes.as_deref(), Some("Restaurant"));
     }
@@ -264,8 +250,7 @@ mod tests {
             date: None,
             category_id: None,
             notes: None,
-            logo_url: Some("https://logo.com/new.png".to_string()),
-        };
+            logo_url: Some("https://logo.com/new.png".to_string()),};
         assert!(req.logo_url.is_some());
     }
 
@@ -281,8 +266,7 @@ mod tests {
             currency: "GBP".to_string(),
             date: NaiveDate::from_ymd_opt(2024, 3, 10).unwrap(),
             notes: Some("Weekly shopping".to_string()),
-            logo_url: Some("https://logo.com/store.png".to_string()),
-            created_at: Utc::now(),
+            logo_url: Some("https://logo.com/store.png".to_string()),created_at: Utc::now(),
             updated_at: Utc::now(),
         };
         let json = serde_json::to_value(&resp).unwrap();
@@ -305,8 +289,7 @@ mod tests {
             currency: "JPY".to_string(),
             date: NaiveDate::from_ymd_opt(2024, 6, 20).unwrap(),
             notes: None,
-            logo_url: None,
-            created_at: Utc::now(),
+            logo_url: None,created_at: Utc::now(),
             updated_at: Utc::now(),
         };
         let resp = TransactionResponse::from(t);

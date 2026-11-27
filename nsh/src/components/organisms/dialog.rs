@@ -26,6 +26,9 @@ impl DialogHost {
     }
 
     pub fn close(&self) {
+        // Anything the dialog opened (a menu, a picker) captured its signals:
+        // it goes before they do.
+        crate::ui::close_menu();
         self.slot.replace(None);
         self.version.set(self.version.get().wrapping_add(1));
     }

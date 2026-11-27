@@ -510,6 +510,9 @@ fn form(
                 };
                 match result {
                     Ok(saved) => {
+                        // The dialog's signals die with it: they are written
+                        // before anything closes the form.
+                        saving.set(false);
                         form_open.set(false);
                         editing.set(None);
                         if let Some(mut snapshot) = data.get() {
@@ -528,9 +531,11 @@ fn form(
                         crate::ui::bump_data();
                         modal.close();
                     }
-                    Err(message) => form_error.set(message),
+                    Err(message) => {
+                        form_error.set(message);
+                        saving.set(false);
+                    }
                 }
-                saving.set(false);
             });
         }
     };
@@ -686,8 +691,8 @@ fn form(
                         .border_color(move || theme().border)
                         .bg(move || theme().card)
                         .on_press(move || {
-                            form_open.set(false);
                             editing.set(None);
+                            form_open.set(false);
                             modal.close();
                         })
                         .child(

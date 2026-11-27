@@ -348,8 +348,7 @@ mod tests {
             currency: "USD".to_string(),
             date: chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
             notes: Some("Business lunch".to_string()),
-            logo_url: Some("https://logo.restaurant.com".to_string()),
-            created_at: chrono::Utc::now(),
+            logo_url: Some("https://logo.restaurant.com".to_string()),created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
         };
         let json = serde_json::to_string(&resp).unwrap();
@@ -370,8 +369,7 @@ mod tests {
             currency: "EUR".to_string(),
             date: chrono::NaiveDate::from_ymd_opt(2024, 3, 10).unwrap(),
             notes: None,
-            logo_url: None,
-            created_at: chrono::Utc::now(),
+            logo_url: None,created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
         };
         let json = serde_json::to_string(&resp).unwrap();
@@ -530,8 +528,7 @@ mod tests {
             currency: "USD".to_string(),
             date: chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
             notes: None,
-            logo_url: None,
-            created_at: chrono::Utc::now(),
+            logo_url: None,created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
         };
         let json = serde_json::to_string(&resp).unwrap();
@@ -550,8 +547,7 @@ mod tests {
             currency: "USD".to_string(),
             date: chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
             notes: None,
-            logo_url: None,
-            created_at: chrono::Utc::now(),
+            logo_url: None,created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
         };
         assert_eq!(resp.amount, rust_decimal::Decimal::ZERO);
@@ -570,8 +566,7 @@ mod tests {
             currency: "USD".to_string(),
             date: chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
             notes: Some(long_notes.clone()),
-            logo_url: None,
-            created_at: chrono::Utc::now(),
+            logo_url: None,created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
         };
         assert_eq!(resp.notes.unwrap().len(), 1000);
@@ -590,8 +585,7 @@ mod tests {
             currency: "USD".to_string(),
             date: chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
             notes: None,
-            logo_url: Some(long_url.clone()),
-            created_at: chrono::Utc::now(),
+            logo_url: Some(long_url.clone()),created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
         };
         assert_eq!(resp.logo_url.unwrap().len(), long_url.len());
@@ -651,8 +645,7 @@ fn transaction_response_zero_amount() {
         currency: "USD".to_string(),
         date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
         notes: None,
-        logo_url: None,
-        created_at: chrono::Utc::now(),
+        logo_url: None,created_at: chrono::Utc::now(),
         updated_at: chrono::Utc::now(),
     };
     assert_eq!(resp.amount, rust_decimal::Decimal::ZERO);
@@ -671,8 +664,7 @@ fn transaction_response_negative_amount() {
         currency: "USD".to_string(),
         date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
         notes: None,
-        logo_url: None,
-        created_at: chrono::Utc::now(),
+        logo_url: None,created_at: chrono::Utc::now(),
         updated_at: chrono::Utc::now(),
     };
     assert!(resp.amount < rust_decimal::Decimal::ZERO);

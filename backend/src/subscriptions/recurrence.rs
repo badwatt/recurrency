@@ -196,6 +196,16 @@ pub fn first_billing_date(
     first_payment.or_else(|| next_occurrence_on_or_after(start, recurrence, from, end_date))
 }
 
+/// A first payment that only repeats the schedule's own start is a form
+/// echoing the anchor back, not a change: honouring it would move the next
+/// charge to that (already billed) date and bill it again.
+pub fn first_payment_change(first_payment: Option<NaiveDate>, start: NaiveDate) -> Option<NaiveDate> {
+    match first_payment {
+        Some(date) if date == start => None,
+        other => other,
+    }
+}
+
 /// First occurrence on or after `from`, respecting the inclusive end date.
 pub fn next_occurrence_on_or_after(
     start: NaiveDate,
@@ -711,5 +721,16 @@ mod tests {
             legacy_from_recurrence(&quarterly),
             ("quarterly".to_string(), Some(2), None)
         );
+    }
+
+    #[test]
+    fn first_payment_repeating_the_start_is_not_a_change() {
+        let start = date(2026, 11, 27);
+        assert_eq!(first_payment_change(Some(start), start), None);
+        assert_eq!(
+            first_payment_change(Some(date(2026, 12, 1)), start),
+            Some(date(2026, 12, 1))
+        );
+        assert_eq!(first_payment_change(None, start), None);
     }
 }

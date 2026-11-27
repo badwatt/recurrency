@@ -406,6 +406,9 @@ pub fn init_route(route: Signal<Route>) {
 }
 
 pub fn navigate(route: Route) {
+    // A menu or dialog left open would keep building the page it came from:
+    // its signals die with the route and reading them panics.
+    close_menu();
     ROUTE.with(|slot| {
         if let Some(current) = *slot.borrow() {
             current.set(route);

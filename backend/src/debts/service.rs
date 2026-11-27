@@ -13,7 +13,9 @@ use crate::shared::error::{AppError, AppResult};
 use crate::subscriptions::models::{
     CreateSubscriptionRequest, Recurrence, UpdateSubscriptionRequest,
 };
-use crate::subscriptions::recurrence::{next_occurrence_on_or_after, validate_recurrence};
+use crate::subscriptions::recurrence::{
+    first_payment_change, next_occurrence_on_or_after, validate_recurrence,
+};
 use crate::subscriptions::service::SubscriptionService;
 use crate::transactions::models::CreateTransactionRequest;
 use crate::transactions::service::TransactionService;
@@ -193,8 +195,7 @@ impl DebtService {
                     account_id,
                     category_id: Some(category_id),
                     notes: Some("Automatic debt payment".to_string()),
-                    logo_url: req.logo_url.clone(),
-                },
+                    logo_url: req.logo_url.clone(),},
             )
             .await?;
             let next = req
@@ -311,7 +312,8 @@ impl DebtService {
         let requested_first_payment = if req.clear_first_payment {
             None
         } else {
-            req.first_payment
+            // A first payment the form mirrors from the anchor is not a change.
+            first_payment_change(req.first_payment, existing.start_date)
         };
         let start_date = requested_first_payment
             .or(req.start_date)
@@ -434,8 +436,7 @@ impl DebtService {
                         account_id,
                         category_id: Some(category_id),
                         notes: Some("Automatic debt payment".to_string()),
-                        logo_url: req.logo_url.clone().or_else(|| existing.logo_url.clone()),
-                    },
+                        logo_url: req.logo_url.clone().or_else(|| existing.logo_url.clone()),},
                 )
                 .await?;
                 subscription_id = Some(subscription.id);
@@ -473,7 +474,11 @@ impl DebtService {
                 None => existing.notes,
             }
         };
-        let logo_url = req.logo_url.or(existing.logo_url);
+        let logo_url = if req.clear_logo {
+            None
+        } else {
+            req.logo_url.or(existing.logo_url)
+        };
         let is_active = remaining_amount > Decimal::ZERO;
         let debt = sqlx::query_as::<_, Debt>(
             r#"
@@ -589,8 +594,7 @@ impl DebtService {
                     account_id: debt.account_id,
                     category_id: Some(debt.category_id),
                     notes: req.note.clone(),
-                    logo_url: None,
-                },
+                    logo_url: None,},
             )
             .await;
         }

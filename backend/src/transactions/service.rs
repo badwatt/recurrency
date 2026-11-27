@@ -274,8 +274,7 @@ mod tests {
         amount: rust_decimal::Decimal,
         date: NaiveDate,
         notes: Option<&str>,
-        logo_url: Option<&str>,
-    ) -> Transaction {
+        logo_url: Option<&str>,) -> Transaction {
         Transaction {
             id: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
@@ -286,8 +285,7 @@ mod tests {
             currency: "USD".to_string(),
             date,
             notes: notes.map(String::from),
-            logo_url: logo_url.map(String::from),
-            created_at: chrono::Utc::now(),
+            logo_url: logo_url.map(String::from),created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
         }
     }
@@ -298,8 +296,7 @@ mod tests {
         currency: Option<&str>,
         date: Option<NaiveDate>,
         notes: Option<&str>,
-        logo_url: Option<&str>,
-    ) -> UpdateTransactionRequest {
+        logo_url: Option<&str>,) -> UpdateTransactionRequest {
         UpdateTransactionRequest {
             name: name.map(String::from),
             amount,
@@ -308,8 +305,7 @@ mod tests {
             account_id: None,
             category_id: None,
             notes: notes.map(String::from),
-            logo_url: logo_url.map(String::from),
-        }
+            logo_url: logo_url.map(String::from),}
     }
 
     // ── resolve_update_fields ──
@@ -394,8 +390,7 @@ mod tests {
             account_id: None,
             category_id: None,
             notes: None,
-            logo_url: None,
-        };
+            logo_url: None,};
         let (_, amount, currency, date, _, _, notes, logo_url) =
             resolve_update_fields(&existing, &req);
         assert_eq!(amount, rust_decimal::Decimal::from(30));
@@ -474,8 +469,7 @@ mod tests {
             currency: "USD".to_string(),
             date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             notes: None,
-            logo_url: None,
-            created_at: chrono::Utc::now(),
+            logo_url: None,created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
         };
         let req = make_update(None, None, None, None, None, None);
@@ -500,8 +494,7 @@ mod tests {
             date: None,
             category_id: None,
             notes: None,
-            logo_url: None,
-        };
+            logo_url: None,};
         let (_, amount, _, _, _, _, _, _) = resolve_update_fields(&existing, &req);
         assert_eq!(amount, rust_decimal::Decimal::new(2999, 2));
         assert_eq!(existing.amount, rust_decimal::Decimal::new(1999, 2));
@@ -613,8 +606,7 @@ mod tests {
             currency: "USD".to_string(),
             date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             notes: None,
-            logo_url: None,
-            created_at: chrono::Utc::now(),
+            logo_url: None,created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
         };
         let req = UpdateTransactionRequest {
@@ -625,8 +617,7 @@ mod tests {
             date: None,
             category_id: Some(cat_id),
             notes: None,
-            logo_url: None,
-        };
+            logo_url: None,};
         let (_, _, _, _, _, preserved_cat, _, _) = resolve_update_fields(&existing, &req);
         assert_eq!(preserved_cat, cat_id);
     }
@@ -662,8 +653,7 @@ mod tests {
             account_id: None,
             category_id: None,
             notes: None,
-            logo_url: None,
-        };
+            logo_url: None,};
         let (_, amount, _, _, _, _, _, _) = resolve_update_fields(&existing, &req);
         assert_eq!(amount, rust_decimal::Decimal::new(50, 3));
     }
@@ -804,8 +794,7 @@ mod tests {
             account_id: None,
             category_id: None,
             notes: None,
-            logo_url: None,
-        };
+            logo_url: None,};
         let (n, a, _, d, _, _, nt, l) = resolve_update_fields(&e, &r);
         assert_eq!(n, "K");
         assert_eq!(a, rust_decimal::Decimal::from(99));

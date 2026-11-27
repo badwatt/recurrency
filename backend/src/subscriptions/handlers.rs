@@ -253,8 +253,7 @@ mod tests {
             frequency: "monthly".to_string(),
             billing_date: chrono::NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
             is_active: true,
-            logo_url: None,
-        };
+            logo_url: None,};
         let json = serde_json::to_value(&item).unwrap();
         assert_eq!(json["name"], "Netflix");
         assert!(
@@ -409,8 +408,7 @@ mod tests {
             next_billing_date: Some(chrono::NaiveDate::from_ymd_opt(2024, 2, 1).unwrap()),
             is_active: true,
             notes: Some("Family plan".to_string()),
-            logo_url: Some("https://logo.netflix.com".to_string()),
-            created_at: chrono::Utc::now(),
+            logo_url: Some("https://logo.netflix.com".to_string()),created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
 
             kind: "subscription".to_string(),
@@ -430,8 +428,7 @@ mod tests {
             frequency: "monthly".to_string(),
             billing_date: chrono::NaiveDate::from_ymd_opt(2024, 6, 1).unwrap(),
             is_active: false,
-            logo_url: None,
-        };
+            logo_url: None,};
         let json = serde_json::to_value(&item).unwrap();
         assert_eq!(json["is_active"], false);
     }
@@ -446,8 +443,7 @@ mod tests {
             frequency: "monthly".to_string(),
             billing_date: chrono::NaiveDate::from_ymd_opt(2024, 6, 1).unwrap(),
             is_active: true,
-            logo_url: Some("https://logo.spotify.com".to_string()),
-        };
+            logo_url: Some("https://logo.spotify.com".to_string()),};
         let json = serde_json::to_value(&item).unwrap();
         assert!(json.get("logo_url").is_some());
     }
@@ -463,8 +459,7 @@ mod tests {
             frequency: "weekly".to_string(),
             billing_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             is_active: true,
-            logo_url: None,
-        };
+            logo_url: None,};
         assert_eq!(item.frequency, "weekly");
     }
 
@@ -478,8 +473,7 @@ mod tests {
             frequency: "quarterly".to_string(),
             billing_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             is_active: true,
-            logo_url: None,
-        };
+            logo_url: None,};
         assert_eq!(item.frequency, "quarterly");
     }
 
@@ -493,8 +487,7 @@ mod tests {
             frequency: "yearly".to_string(),
             billing_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             is_active: true,
-            logo_url: None,
-        };
+            logo_url: None,};
         assert_eq!(item.frequency, "yearly");
     }
 
@@ -519,8 +512,7 @@ mod tests {
                 next_billing_date: None,
                 is_active: true,
                 notes: None,
-                logo_url: None,
-                created_at: chrono::Utc::now(),
+                logo_url: None,created_at: chrono::Utc::now(),
                 updated_at: chrono::Utc::now(),
 
                 kind: "subscription".to_string(),
@@ -550,8 +542,7 @@ mod tests {
             next_billing_date: None,
             is_active: true,
             notes: None,
-            logo_url: None,
-            created_at: chrono::Utc::now(),
+            logo_url: None,created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
 
             kind: "subscription".to_string(),
@@ -584,8 +575,7 @@ mod tests {
             next_billing_date: None,
             is_active: true,
             notes: None,
-            logo_url: None,
-            created_at: chrono::Utc::now(),
+            logo_url: None,created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
 
             kind: "subscription".to_string(),
@@ -673,8 +663,7 @@ fn calendar_item_micro_amount() {
         frequency: "weekly".to_string(),
         billing_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
         is_active: true,
-        logo_url: None,
-    };
+        logo_url: None,};
     assert!(item.amount < rust_decimal::Decimal::ONE);
 }
 
@@ -688,8 +677,7 @@ fn calendar_item_currency_jpy() {
         frequency: "yearly".to_string(),
         billing_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
         is_active: true,
-        logo_url: None,
-    };
+        logo_url: None,};
     assert_eq!(item.currency, "JPY");
 }
 
@@ -703,8 +691,7 @@ fn calendar_item_name_with_special_chars() {
         frequency: "monthly".to_string(),
         billing_date: chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
         is_active: true,
-        logo_url: None,
-    };
+        logo_url: None,};
     assert!(item.name.contains('™'));
 }
 
@@ -718,8 +705,7 @@ fn calendar_item_billing_date_far_future() {
         frequency: "yearly".to_string(),
         billing_date: chrono::NaiveDate::from_ymd_opt(2099, 12, 31).unwrap(),
         is_active: true,
-        logo_url: None,
-    };
+        logo_url: None,};
     assert!(item.billing_date > chrono::Utc::now().date_naive());
 }
 
@@ -804,8 +790,7 @@ fn resolve_subscription_name_unicode() {
         next_billing_date: None,
         is_active: true,
         notes: None,
-        logo_url: None,
-        created_at: chrono::Utc::now(),
+        logo_url: None,created_at: chrono::Utc::now(),
         updated_at: chrono::Utc::now(),
 
         kind: "subscription".to_string(),
@@ -826,12 +811,11 @@ fn resolve_subscription_name_unicode() {
         category_id: None,
         is_active: None,
         notes: None,
-        logo_url: None,
-
-        first_payment: None,
+        logo_url: None,first_payment: None,
         clear_first_payment: false,
 
         kind: None,
+        clear_logo: false,
     };
     // Inline: name comes from req
     let name = req.name.clone().unwrap_or(existing.name.clone());
@@ -858,8 +842,7 @@ fn resolve_subscription_all_none_preserves_existing() {
         next_billing_date: Some(chrono::NaiveDate::from_ymd_opt(2024, 4, 1).unwrap()),
         is_active: true,
         notes: Some("keep notes".to_string()),
-        logo_url: Some("https://old.png".to_string()),
-        created_at: chrono::Utc::now(),
+        logo_url: Some("https://old.png".to_string()),created_at: chrono::Utc::now(),
         updated_at: chrono::Utc::now(),
 
         kind: "subscription".to_string(),
@@ -880,12 +863,11 @@ fn resolve_subscription_all_none_preserves_existing() {
         category_id: None,
         is_active: None,
         notes: None,
-        logo_url: None,
-
-        first_payment: None,
+        logo_url: None,first_payment: None,
         clear_first_payment: false,
 
         kind: None,
+        clear_logo: false,
     };
     // Inline: when all req fields are None, existing values are preserved
     let name = req.name.clone().unwrap_or(existing.name.clone());
@@ -914,8 +896,7 @@ fn resolve_subscription_partial_update_amount_only() {
         next_billing_date: None,
         is_active: true,
         notes: None,
-        logo_url: None,
-        created_at: chrono::Utc::now(),
+        logo_url: None,created_at: chrono::Utc::now(),
         updated_at: chrono::Utc::now(),
 
         kind: "subscription".to_string(),
@@ -936,12 +917,11 @@ fn resolve_subscription_partial_update_amount_only() {
         category_id: None,
         is_active: None,
         notes: None,
-        logo_url: None,
-
-        first_payment: None,
+        logo_url: None,first_payment: None,
         clear_first_payment: false,
 
         kind: None,
+        clear_logo: false,
     };
     // Inline: name preserved, amount overridden
     let name = req.name.clone().unwrap_or(existing.name.clone());
@@ -970,8 +950,7 @@ fn resolve_subscription_start_date_change() {
         next_billing_date: None,
         is_active: true,
         notes: None,
-        logo_url: None,
-        created_at: chrono::Utc::now(),
+        logo_url: None,created_at: chrono::Utc::now(),
         updated_at: chrono::Utc::now(),
 
         kind: "subscription".to_string(),
@@ -992,12 +971,11 @@ fn resolve_subscription_start_date_change() {
         category_id: None,
         is_active: None,
         notes: None,
-        logo_url: None,
-
-        first_payment: None,
+        logo_url: None,first_payment: None,
         clear_first_payment: false,
 
         kind: None,
+        clear_logo: false,
     };
     // Inline: start_date overridden from req
     let start_date = req.start_date.unwrap_or(existing.start_date);

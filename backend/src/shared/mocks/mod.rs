@@ -704,8 +704,7 @@ impl MockSubscriptionService {
             next_billing_date: Some(req.start_date),
             is_active: true,
             notes: req.notes,
-            logo_url: req.logo_url,
-            created_at: Utc::now(),
+            logo_url: req.logo_url,created_at: Utc::now(),
             updated_at: Utc::now(),
 
             kind: "subscription".to_string(),
@@ -836,8 +835,7 @@ impl MockSubscriptionService {
                 billing_date: NaiveDate::from_ymd_opt(year, month, 15)
                     .unwrap_or_else(|| NaiveDate::from_ymd_opt(year, 1, 1).unwrap()),
                 is_active: s.is_active,
-                logo_url: s.logo_url.clone(),
-            })
+                logo_url: s.logo_url.clone(),})
             .collect())
     }
 }
@@ -911,8 +909,7 @@ impl MockTransactionService {
             currency: req.currency,
             date: req.date,
             notes: req.notes,
-            logo_url: req.logo_url,
-            created_at: Utc::now(),
+            logo_url: req.logo_url,created_at: Utc::now(),
             updated_at: Utc::now(),
         };
 
@@ -2216,9 +2213,7 @@ mod tests {
                 account_id: Uuid::new_v4(),
                 category_id: Some(Uuid::new_v4()),
                 notes: None,
-                logo_url: None,
-
-                kind: "subscription".to_string(),
+                logo_url: None,kind: "subscription".to_string(),
             }
         }
 
@@ -2341,12 +2336,11 @@ mod tests {
                 category_id: None,
                 is_active: Some(false),
                 notes: None,
-                logo_url: None,
-
-                first_payment: None,
+                logo_url: None,first_payment: None,
                 clear_first_payment: false,
 
                 kind: None,
+                clear_logo: false,
             };
             let result = mock.update(user_id, sub.id, req).await;
             assert!(result.is_ok());
@@ -2374,12 +2368,11 @@ mod tests {
                 category_id: None,
                 is_active: None,
                 notes: None,
-                logo_url: None,
-
-                first_payment: None,
+                logo_url: None,first_payment: None,
                 clear_first_payment: false,
 
                 kind: None,
+                clear_logo: false,
             };
             let result = mock.update(Uuid::new_v4(), Uuid::new_v4(), req).await;
             assert!(result.is_err());
@@ -2404,12 +2397,11 @@ mod tests {
                 category_id: None,
                 is_active: None,
                 notes: None,
-                logo_url: None,
-
-                first_payment: None,
+                logo_url: None,first_payment: None,
                 clear_first_payment: false,
 
                 kind: None,
+                clear_logo: false,
             };
             let result = mock.update(Uuid::new_v4(), Uuid::new_v4(), req).await;
             assert!(result.is_err());
@@ -2520,8 +2512,7 @@ mod tests {
                 next_billing_date: None,
                 is_active: true,
                 notes: None,
-                logo_url: None,
-                created_at: Utc::now(),
+                logo_url: None,created_at: Utc::now(),
                 updated_at: Utc::now(),
 
                 kind: "subscription".to_string(),
@@ -2551,8 +2542,7 @@ mod tests {
                 next_billing_date: None,
                 is_active: true,
                 notes: None,
-                logo_url: None,
-                created_at: Utc::now(),
+                logo_url: None,created_at: Utc::now(),
                 updated_at: Utc::now(),
 
                 kind: "subscription".to_string(),
@@ -2577,8 +2567,7 @@ mod tests {
                 account_id: Uuid::new_v4(),
                 category_id: Some(Uuid::new_v4()),
                 notes: Some("Test transaction".to_string()),
-                logo_url: None,
-            }
+                logo_url: None,}
         }
 
         #[tokio::test]
@@ -2698,8 +2687,7 @@ mod tests {
                 account_id: None,
                 category_id: None,
                 notes: None,
-                logo_url: None,
-            };
+                logo_url: None,};
             let result = mock.update(user_id, trans.id, req).await;
             assert!(result.is_ok());
             let updated = result.unwrap();
@@ -2717,8 +2705,7 @@ mod tests {
                 date: None,
                 category_id: None,
                 notes: None,
-                logo_url: None,
-            };
+                logo_url: None,};
             let result = mock.update(Uuid::new_v4(), Uuid::new_v4(), req).await;
             assert!(result.is_err());
         }
@@ -2734,8 +2721,7 @@ mod tests {
                 date: None,
                 category_id: None,
                 notes: None,
-                logo_url: None,
-            };
+                logo_url: None,};
             let result = mock.update(Uuid::new_v4(), Uuid::new_v4(), req).await;
             assert!(result.is_err());
         }
@@ -2781,8 +2767,7 @@ mod tests {
                 account_id: Uuid::new_v4(),
                 category_id: Some(Uuid::new_v4()),
                 notes: None,
-                logo_url: None,
-            };
+                logo_url: None,};
             let req2 = CreateTransactionRequest {
                 account_id: Uuid::new_v4(),
                 name: "July".to_string(),
@@ -2791,8 +2776,7 @@ mod tests {
                 date: NaiveDate::from_ymd_opt(2024, 7, 20).unwrap(),
                 category_id: Some(Uuid::new_v4()),
                 notes: None,
-                logo_url: None,
-            };
+                logo_url: None,};
             mock.create(user_id, req1).await.unwrap();
             mock.create(user_id, req2).await.unwrap();
 
@@ -2841,8 +2825,7 @@ mod tests {
                 currency: "USD".to_string(),
                 date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
                 notes: None,
-                logo_url: None,
-                created_at: Utc::now(),
+                logo_url: None,created_at: Utc::now(),
                 updated_at: Utc::now(),
             };
             mock.add_transaction(t);
@@ -2863,8 +2846,7 @@ mod tests {
                 currency: "USD".to_string(),
                 date: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
                 notes: None,
-                logo_url: None,
-                created_at: Utc::now(),
+                logo_url: None,created_at: Utc::now(),
                 updated_at: Utc::now(),
             };
             let mock = MockTransactionService::with_transactions(vec![t]);
@@ -3494,8 +3476,7 @@ mod tests {
                 next_billing_date: None,
                 is_active: true,
                 notes: None,
-                logo_url: None,
-                created_at: Utc::now(),
+                logo_url: None,created_at: Utc::now(),
                 updated_at: Utc::now(),
 
                 kind: "subscription".to_string(),
@@ -3518,8 +3499,7 @@ mod tests {
                 currency: "EUR".to_string(),
                 date: NaiveDate::from_ymd_opt(2024, 6, 15).unwrap(),
                 notes: Some("Clone note".to_string()),
-                logo_url: None,
-                created_at: Utc::now(),
+                logo_url: None,created_at: Utc::now(),
                 updated_at: Utc::now(),
             };
             let cloned = trans.clone();
@@ -3671,9 +3651,7 @@ mod tests {
                         account_id: Uuid::new_v4(),
                         category_id: None,
                         notes: None,
-                        logo_url: None,
-
-                        first_payment: None,
+                        logo_url: None,first_payment: None,
 
                         kind: "subscription".to_string(),
                     },
@@ -3697,12 +3675,11 @@ mod tests {
                 category_id: None,
                 is_active: None,
                 notes: None,
-                logo_url: None,
-
-                first_payment: None,
+                logo_url: None,first_payment: None,
                 clear_first_payment: false,
 
                 kind: None,
+                clear_logo: false,
             };
             let result = mock.update(user_id, sub.id, req).await;
             assert!(result.is_ok());
@@ -4052,9 +4029,7 @@ mod tests {
                         account_id: Uuid::new_v4(),
                         category_id: None,
                         notes: None,
-                        logo_url: None,
-
-                        first_payment: None,
+                        logo_url: None,first_payment: None,
 
                         kind: "subscription".to_string(),
                     },
@@ -4078,12 +4053,11 @@ mod tests {
                 category_id: None,
                 is_active: None,
                 notes: None,
-                logo_url: None,
-
-                first_payment: None,
+                logo_url: None,first_payment: None,
                 clear_first_payment: false,
 
                 kind: None,
+                clear_logo: false,
             };
             let result = mock.update(user_id, sub.id, req).await;
             assert!(result.is_ok());
@@ -4111,9 +4085,7 @@ mod tests {
                         end_date: None,
                         category_id: None,
                         notes: None,
-                        logo_url: None,
-
-                        first_payment: None,
+                        logo_url: None,first_payment: None,
 
                         kind: "subscription".to_string(),
                     },
@@ -4137,12 +4109,11 @@ mod tests {
                 account_id: None,
                 category_id: None,
                 notes: None,
-                logo_url: None,
-
-                first_payment: None,
+                logo_url: None,first_payment: None,
                 clear_first_payment: false,
 
                 kind: None,
+                clear_logo: false,
             };
             let result = mock.update(user_id, sub.id, req).await;
             assert!(result.is_ok());
@@ -4169,9 +4140,7 @@ mod tests {
                         end_date: None,
                         category_id: None,
                         notes: None,
-                        logo_url: None,
-
-                        first_payment: None,
+                        logo_url: None,first_payment: None,
 
                         kind: "subscription".to_string(),
                     },
@@ -4196,12 +4165,11 @@ mod tests {
                 category_id: None,
                 is_active: Some(false),
                 notes: None,
-                logo_url: None,
-
-                first_payment: None,
+                logo_url: None,first_payment: None,
                 clear_first_payment: false,
 
                 kind: None,
+                clear_logo: false,
             };
             let result = mock.update(user_id, sub.id, req).await;
             assert!(result.is_ok());

@@ -246,7 +246,8 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
     });
     let filter = signal(Filter::All);
     let search = signal(String::new());
-    let list_view = signal(false);
+    let list_view = signal(crate::view_state::money_list());
+    effect(move || crate::view_state::save_money_list(list_view.get()));
     let bulk = signal(false);
     let selected = signal(Vec::<(Kind, Uuid)>::new());
     let loading = move || {
@@ -387,6 +388,7 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
                                 is_active: item.is_active,
                                 notes: item.notes,
                                 logo_url: item.logo_url,
+                                clear_logo: false,
                             },
                         )
                         .await
@@ -447,6 +449,7 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
                                 start_date: Some(item.start_date),
                                 notes: item.notes,
                                 logo_url: item.logo_url,
+                                clear_logo: false,
                             },
                         )
                         .await
@@ -808,11 +811,6 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
                             move || list_view.set(true),
                         )),
                 )
-                .child(crate::components::button::button(
-                    crate::components::button::ButtonProps::new("Add")
-                        .icon(asset!("icons/plus.svg"))
-                        .on_press(open_add.clone()),
-                )),
         )
         .child(chips(
             filter,
@@ -823,6 +821,33 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
                 move || bulk.get(),
                 move || {
                     let all = items();
+                    let set_active: std::rc::Rc<dyn Fn(bool)> = std::rc::Rc::new({
+                        let server = server_signal;
+                        let token = token_signal;
+                        move |active: bool| {
+                            let values = selected.get();
+                            let server = server.get();
+                            let token = token.get();
+                            spawn(async move {
+                                for (kind, id) in values {
+                                    if matches!(kind, Kind::Subscription | Kind::Budget) {
+                                        let _ = api::update_subscription(
+                                            server.clone(),
+                                            token.clone(),
+                                            id,
+                                            &serde_json::json!({ "is_active": active }),
+                                        )
+                                        .await;
+                                    }
+                                }
+                                selected.set(Vec::new());
+                                subscriptions.refetch();
+                                transactions.refetch();
+                                debts.refetch();
+                                ui::bump_data();
+                            });
+                        }
+                    });
                     view()
                         .w_full()
                         .flex_row()
@@ -846,14 +871,14 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
                         .child(crate::ui::action_button("Clear", false, move || {
                             selected.set(Vec::new())
                         }))
-                        .child(bulk_actions_menu(
-                            server_signal,
-                            token_signal,
-                            selected,
-                            subscriptions,
-                            transactions,
-                            debts,
-                        ))
+                        .child(crate::ui::action_button("Mark active", false, {
+                            let apply = set_active.clone();
+                            move || apply(true)
+                        }))
+                        .child(crate::ui::action_button("Mark inactive", false, {
+                            let apply = set_active.clone();
+                            move || apply(false)
+                        }))
                         .child(crate::ui::action_button("Delete", true, {
                             let server = server_signal;
                             let token = token_signal;
@@ -996,105 +1021,6 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
         .into_element()
 }
 
-/// Bulk actions for the shared money screen: the same patch applied to every
-/// selected subscription or budget. One-off payments and debts have no state
-/// to toggle, so they are left untouched.
-fn bulk_actions_menu(
-    server: Signal<String>,
-    token: Signal<String>,
-    selected: Signal<Vec<(Kind, Uuid)>>,
-    subscriptions: Resource<api::SubscriptionsData, String>,
-    transactions: Resource<api::TransactionsData, String>,
-    debts: Resource<api::DebtsData, String>,
-) -> AnyElement {
-    let apply = std::rc::Rc::new(move |active: bool| {
-        let values = selected.get();
-        if values.is_empty() {
-            return;
-        }
-        let server = server.get();
-        let token = token.get();
-        spawn(async move {
-            for (kind, id) in values {
-                if matches!(kind, Kind::Subscription | Kind::Budget) {
-                    let _ = api::update_subscription(
-                        server.clone(),
-                        token.clone(),
-                        id,
-                        &serde_json::json!({ "is_active": active }),
-                    )
-                    .await;
-                }
-            }
-            selected.set(Vec::new());
-            subscriptions.refetch();
-            transactions.refetch();
-            debts.refetch();
-            ui::bump_data();
-        });
-    });
-    let panel = {
-        let apply = apply.clone();
-        move || {
-            let activate = apply.clone();
-            let deactivate = apply.clone();
-            card()
-                .w(px(190.0))
-                .p(px(8.0))
-                .gap(px(2.0))
-                .bg(move || theme().popover)
-                .child(
-                    text("Bulk actions")
-                        .text_size(px(10.0))
-                        .font_weight(FontWeight::MEDIUM)
-                        .text_color(move || theme().muted_foreground),
-                )
-                .child(crate::ui::action_button("Mark active", false, move || {
-                    activate(true);
-                    crate::ui::close_menu();
-                }))
-                .child(crate::ui::action_button("Mark inactive", false, move || {
-                    deactivate(false);
-                    crate::ui::close_menu();
-                }))
-                .into_element()
-        }
-    };
-    view()
-        .relative()
-        .z_index(120)
-        .child(
-            view()
-                .cursor_pointer()
-                .h(px(28.0))
-                .px(px(10.0))
-                .items_center()
-                .justify_center()
-                .rounded(px(6.0))
-                .border(px(1.0))
-                .border_color(move || theme().border)
-                .bg(move || theme().card)
-                .on_press(move |event: &PressEvent| {
-                    let page = event.page_position;
-                    let local = event.position;
-                    crate::ui::open_menu(
-                        crate::ui::MenuPlacement::At {
-                            top: page.y.0 - local.y.0 + 32.0,
-                            left: (page.x.0 - 95.0).max(8.0),
-                        },
-                        panel.clone(),
-                    );
-                })
-                .child(
-                    text("Bulk actions")
-                        .text_size(px(12.0))
-                        .font_weight(FontWeight::MEDIUM)
-                        .text_color(move || theme().foreground),
-                ),
-        )
-        .into_element()
-}
-
 fn chips(filter: Signal<Filter>, items: impl Fn() -> Vec<Item> + Copy + 'static) -> AnyElement {
     let counts = move || {
         let all = items();
@@ -1170,6 +1096,23 @@ fn chips(filter: Signal<Filter>, items: impl Fn() -> Vec<Item> + Copy + 'static)
         .into_element()
 }
 
+/// Colours the cards fall back to when neither the category nor the account
+/// has one: the same stable palette the Dioxus avatars use, keyed by the
+/// entity's name, so every card is identifiable at a glance.
+const FALLBACK_COLORS: [&str; 8] = [
+    "#6366f1", "#8b5cf6", "#ec4899", "#f97316", "#14b8a6", "#0ea5e9", "#22c55e", "#eab308",
+];
+
+fn fallback_color(seed: &str) -> String {
+    if seed.is_empty() {
+        return "#6b7280".to_string();
+    }
+    let hash = seed
+        .bytes()
+        .fold(0usize, |acc, byte| acc.wrapping_add(usize::from(byte)));
+    FALLBACK_COLORS[hash % FALLBACK_COLORS.len()].to_string()
+}
+
 fn build_items(
     subscriptions: Resource<api::SubscriptionsData, String>,
     transactions: Resource<api::TransactionsData, String>,
@@ -1179,8 +1122,19 @@ fn build_items(
 ) -> Vec<Item> {
     let needle = search.trim().to_lowercase();
     let mut items = Vec::new();
+    // An automatic debt bills through a subscription of its own: the debt card
+    // already shows it, so the subscription is not listed twice.
+    let linked: Vec<Uuid> = debts.get().map_or_else(Vec::new, |data| {
+        data.debts
+            .iter()
+            .filter_map(|debt| debt.subscription_id)
+            .collect()
+    });
     if let Some(data) = subscriptions.get() {
         for sub in data.subscriptions {
+            if linked.contains(&sub.id) {
+                continue;
+            }
             let kind = if sub.kind == "budget" {
                 Kind::Budget
             } else {
@@ -1194,7 +1148,13 @@ fn build_items(
                 .find(|c| c.id == sub.category_id)
                 .and_then(|c| c.color.clone())
                 .or_else(|| account_row.and_then(|a| a.color.clone()))
-                .unwrap_or_else(|| "#6b7280".to_string());
+                .unwrap_or_else(|| {
+                    fallback_color(if account.is_empty() {
+                        &sub.name
+                    } else {
+                        &account
+                    })
+                });
             let category = data
                 .categories
                 .iter()
@@ -1230,7 +1190,13 @@ fn build_items(
                 .find(|c| c.id == tx.category_id)
                 .and_then(|c| c.color.clone())
                 .or_else(|| account_row.and_then(|a| a.color.clone()))
-                .unwrap_or_else(|| "#6b7280".to_string());
+                .unwrap_or_else(|| {
+                    fallback_color(if account.is_empty() {
+                        &tx.name
+                    } else {
+                        &account
+                    })
+                });
             let category = data
                 .categories
                 .iter()
@@ -1262,7 +1228,13 @@ fn build_items(
                 .find(|c| c.id == debt.category_id)
                 .and_then(|c| c.color.clone())
                 .or_else(|| account_row.and_then(|a| a.color.clone()))
-                .unwrap_or_else(|| "#6b7280".to_string());
+                .unwrap_or_else(|| {
+                    fallback_color(if account.is_empty() {
+                        &debt.name
+                    } else {
+                        &account
+                    })
+                });
             let category = data
                 .categories
                 .iter()
@@ -1345,6 +1317,33 @@ const GRID_CARD_MAX: f32 = 420.0;
 /// so a tile is recognisable before reading its name.
 const CARD_TINT_ALPHA: u32 = 0x1f;
 const CARD_BORDER_ALPHA: u32 = 0x4d;
+
+/// The account (or category) an item belongs to, as the small coloured chip
+/// the cards wear: its colour is the one the entity's icon was given.
+fn entity_chip(label: String, color: String) -> AnyElement {
+    view()
+        .h(px(20.0))
+        .px(px(6.0))
+        .items_center()
+        .justify_center()
+        .rounded(px(6.0))
+        .border(px(1.0))
+        .border_color({
+            let chip = color.clone();
+            move || AdaptiveColor::from(rgba((crate::theme::parse_hex(&chip) << 8) | 0x26))
+        })
+        .bg({
+            let chip = color.clone();
+            move || rgba((crate::theme::parse_hex(&chip) << 8) | 0x15)
+        })
+        .child(
+            text(label)
+                .text_size(px(11.0))
+                .font_weight(FontWeight::MEDIUM)
+                .text_color(move || rgba(crate::theme::parse_hex(&color) << 8)),
+        )
+        .into_element()
+}
 
 fn grid_card(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyElement {
     let item_id = item.id;
@@ -1431,19 +1430,20 @@ fn grid_card(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyEle
                         .flex_row()
                         .items_center()
                         .gap(px(4.0))
-                        .child(
-                            text(if account.is_empty() {
+                        .child(entity_chip(
+                            if account.is_empty() {
                                 item.category.clone()
                             } else {
                                 account.clone()
-                            })
-                            .text_size(px(11.0))
-                            .text_color(move || theme().foreground.opacity(0.75)),
-                        )
+                            },
+                            item.color.clone(),
+                        ))
                         .when(kind == Kind::Debt, |row| {
-                            row.child(crate::ui::action_button("Pay", false, move || {
-                                money_pay(kind, item_id)
-                            }))
+                            row.child(crate::ui::mini_icon_button(
+                                asset!("icons/card.svg"),
+                                false,
+                                move || money_pay(kind, item_id),
+                            ))
                         })
                         .child(crate::ui::mini_icon_button(
                             asset!("icons/notes.svg"),
@@ -1554,7 +1554,6 @@ fn list_row(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyElem
                 .w_full()
                 .flex_row()
                 .items_center()
-                .justify_between()
                 .mt(px(10.0))
                 .pt(px(8.0))
                 .border_t(px(1.0))
@@ -1568,11 +1567,31 @@ fn list_row(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyElem
                     FontWeight::SEMIBOLD,
                     true,
                 ))
+                .when_some(progress, |row, value| {
+                    row.child(
+                        view()
+                            .flex_grow(1.0)
+                            .min_w(px(120.0))
+                            .mx(px(24.0))
+                            .h(px(6.0))
+                            .rounded(px(999.0))
+                            .bg(move || theme().muted)
+                            .child(
+                                view()
+                                    .h_full()
+                                    .w(nsh_core::geometry::Length::from(
+                                        nsh_core::geometry::Percentage(value),
+                                    ))
+                                    .rounded(px(999.0))
+                                    .bg(move || theme().primary),
+                            ),
+                    )
+                })
                 .child(
                     view()
                         .flex_row()
                         .items_center()
-                        .gap(px(8.0))
+                        .gap(px(4.0))
                         .pointer_events(move || {
                             if money_bulk_active() {
                                 PointerEvents::None
@@ -1580,28 +1599,12 @@ fn list_row(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyElem
                                 PointerEvents::Auto
                             }
                         })
-                        .when_some(progress, |row, value| {
-                            row.child(
-                                view()
-                                    .w(px(80.0))
-                                    .h(px(6.0))
-                                    .rounded(px(999.0))
-                                    .bg(move || theme().muted)
-                                    .child(
-                                        view()
-                                            .h_full()
-                                            .w(nsh_core::geometry::Length::from(
-                                                nsh_core::geometry::Percentage(value),
-                                            ))
-                                            .rounded(px(999.0))
-                                            .bg(move || theme().primary),
-                                    ),
-                            )
-                        })
                         .when(kind == Kind::Debt, |row| {
-                            row.child(crate::ui::action_button("Pay", false, move || {
-                                money_pay(kind, item_id)
-                            }))
+                            row.child(crate::ui::mini_icon_button(
+                                asset!("icons/card.svg"),
+                                false,
+                                move || money_pay(kind, item_id),
+                            ))
                         })
                         .child(crate::ui::mini_icon_button(
                             asset!("icons/notes.svg"),
@@ -1736,7 +1739,7 @@ fn add_menu(auth: std::rc::Rc<AuthSession>, modal: ui::ModalHost) -> AnyElement 
 
 #[cfg(test)]
 mod tests {
-    use super::{Filter, Kind};
+    use super::{Filter, Kind, fallback_color, FALLBACK_COLORS};
 
     #[test]
     fn the_type_filters_match_their_own_kind_only() {
@@ -1746,6 +1749,13 @@ mod tests {
         assert!(Filter::Budget.accepts(Kind::Budget));
         assert!(Filter::Transaction.accepts(Kind::Transaction));
         assert!(Filter::Debt.accepts(Kind::Debt));
+    }
+
+    #[test]
+    fn cards_fall_back_to_a_stable_palette_colour() {
+        assert_eq!(fallback_color("Test"), fallback_color("Test"));
+        assert!(FALLBACK_COLORS.contains(&fallback_color("Test").as_str()));
+        assert_eq!(fallback_color(""), "#6b7280");
     }
 
     #[test]
