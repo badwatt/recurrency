@@ -510,7 +510,7 @@ fn stat_dot(label: impl Fn() -> String + 'static) -> impl IntoElement {
 fn upcoming_card(
     data: Resource<DashboardData, String>,
     currency: &str,
-    route: Signal<Route>,
+    _route: Signal<Route>,
     today: chrono::NaiveDate,
     hovered: Signal<Option<Uuid>>,
     hovered_category: Signal<Option<Uuid>>,
@@ -563,7 +563,7 @@ fn upcoming_card(
                         .px(px(8.0))
                         .mt(px(-10.0))
                         .rounded(px(6.0))
-                        .on_press(move || route.set(Route::Calendar))
+                        .on_press(move || crate::ui::navigate(Route::Calendar))
                         .child(
                             text("View calendar")
                                 .text_size(px(12.0))
@@ -1204,20 +1204,23 @@ fn category_row(
         .items_center()
         .gap(px(10.0))
         .min_w(px(0.0))
-        .child(
+        .child({
+            // The tile the Accounts list draws, with the category's own icon.
+            let tint = crate::theme::parse_hex(&color);
             view()
                 .h(px(40.0))
                 .w(px(40.0))
+                .flex_shrink_0()
                 .items_center()
                 .justify_center()
                 .rounded(px(8.0))
-                .bg(move || theme().muted)
+                .bg(move || rgba((tint << 8) | 0x20))
                 .child(crate::components::entity_icon::entity_icon(
                     &icon,
-                    crate::theme::parse_hex(&color),
-                    18.0,
-                )),
-        )
+                    (tint << 8) | 0xff,
+                    16.0,
+                ))
+        })
         .child(
             view()
                 .flex_col()

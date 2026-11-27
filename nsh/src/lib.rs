@@ -207,6 +207,7 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
     ui::init_compact(compact);
     ui::init_selects();
     let modal = ui::ModalHost::new();
+    ui::init_modal_host(modal);
     ui::init_subscription_creator({
         let auth = creator_auth.clone();
         move |date| crate::subscriptions::open_create_dialog(auth.clone(), modal, date)

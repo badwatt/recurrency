@@ -36,12 +36,13 @@ pub fn save_money_list(list: bool) {
     let _ = Storage::set_item(MONEY_KEY, if list { "list" } else { "grid" });
 }
 
+/// The money list opens ordered by what charges first.
 pub fn money_sort_field() -> String {
-    value(MONEY_SORT_FIELD_KEY, "updated")
+    value(MONEY_SORT_FIELD_KEY, "date")
 }
 
 pub fn money_sort_descending() -> bool {
-    value(MONEY_SORT_DESC_KEY, "desc") == "desc"
+    value(MONEY_SORT_DESC_KEY, "asc") == "desc"
 }
 
 pub fn save_money_sort(field: String, descending: bool) {

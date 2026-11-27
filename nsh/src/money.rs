@@ -832,7 +832,7 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
                     sort_field,
                     sort_desc,
                     vec![
-                        SortOption::new("date", "Date"),
+                        SortOption::new("date", "Upcoming date"),
                         SortOption::new("name", "Name"),
                         SortOption::new("amount", "Amount"),
                         SortOption::new("updated", "Last modified"),
@@ -1055,8 +1055,8 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
                         .otherwise(move || {
                             view()
                                 .w_full()
-                                .flex_row()
-                                .flex_wrap()
+                                .grid()
+                                .grid_template_columns(GRID_COLUMNS)
                                 .gap(px(16.0))
                                 .child(each(
                                     items,
@@ -1334,7 +1334,11 @@ fn build_items(
     items.sort_by(|a, b| match order.field.as_str() {
         "name" => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
         "amount" => a.amount.cmp(&b.amount),
-        "date" => a.date.cmp(&b.date),
+        "date" => a
+            .date
+            .is_none()
+            .cmp(&b.date.is_none())
+            .then(a.date.cmp(&b.date)),
         _ => a.updated.cmp(&b.updated),
     });
     if order.descending {
@@ -1376,9 +1380,9 @@ fn type_badge(kind: Kind) -> AnyElement {
 /// stacking when a fixed 360 px would not fit next to its neighbour.
 /// The header's action slot clips its children: the Add button needs room.
 const HEADER_ACTION_WIDTH: f32 = 120.0;
-const GRID_CARD_BASIS: f32 = 320.0;
-const GRID_CARD_MIN: f32 = 300.0;
-const GRID_CARD_MAX: f32 = 460.0;
+/// Equal tracks that never go below 300 px: a row with one card left keeps
+/// the same width as the rows above it.
+const GRID_COLUMNS: &str = "repeat(auto-fill, minmax(300px, 1fr))";
 /// Cards wear the colour of the account (or the category) the item belongs to,
 /// so a tile is recognisable before reading its name.
 
@@ -1394,11 +1398,7 @@ fn grid_card(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyEle
     card()
         .relative()
         .overflow_hidden()
-        .basis(px(GRID_CARD_BASIS))
-        .flex_grow(1.0)
-        .flex_shrink(1.0)
-        .min_w(px(GRID_CARD_MIN))
-        .max_w(px(GRID_CARD_MAX))
+        .w_full()
         .p(px(18.0))
         .gap(px(12.0))
         .cursor_pointer()
@@ -1468,6 +1468,8 @@ fn grid_card(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyEle
                         .flex_row()
                         .flex_wrap()
                         .items_center()
+                        .flex_grow(1.0)
+                        .min_w(px(0.0))
                         .gap(px(6.0))
                         .child(type_badge(kind))
                         .child(tagged_chip(&account))
@@ -1477,6 +1479,7 @@ fn grid_card(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyEle
                     view()
                         .flex_row()
                         .items_center()
+                        .justify_end()
                         .gap(px(4.0))
                         .when(kind == Kind::Debt, |row| {
                             row.child(crate::ui::mini_icon_button(
@@ -1604,6 +1607,7 @@ fn list_row(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyElem
                 .w_full()
                 .flex_row()
                 .items_center()
+                .justify_between()
                 .mt(px(10.0))
                 .pt(px(8.0))
                 .border_t(px(1.0))

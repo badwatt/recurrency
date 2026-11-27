@@ -23,6 +23,7 @@ thread_local! {
     static MENU_VERSION: RefCell<Option<Signal<u64>>> = const { RefCell::new(None) };
     static SUBSCRIPTION_INTENT: RefCell<Option<Signal<Option<SubscriptionIntent>>>> = const { RefCell::new(None) };
     static LOGO_MODAL: RefCell<Option<crate::components::dialog::DialogHost>> = const { RefCell::new(None) };
+    static MODAL_HOST: RefCell<Option<crate::components::dialog::DialogHost>> = const { RefCell::new(None) };
     static DATA_REVISION: RefCell<Option<Signal<u64>>> = const { RefCell::new(None) };
 }
 thread_local! {
@@ -405,10 +406,20 @@ pub fn init_route(route: Signal<Route>) {
     });
 }
 
+/// Remembers the shell's dialog host so a route change can close it.
+pub fn init_modal_host(host: crate::components::dialog::DialogHost) {
+    MODAL_HOST.with(|slot| *slot.borrow_mut() = Some(host));
+}
+
 pub fn navigate(route: Route) {
     // A menu or dialog left open would keep building the page it came from:
     // its signals die with the route and reading them panics.
     close_menu();
+    MODAL_HOST.with(|slot| {
+        if let Some(host) = *slot.borrow() {
+            host.close();
+        }
+    });
     ROUTE.with(|slot| {
         if let Some(current) = *slot.borrow() {
             current.set(route);
@@ -436,13 +447,13 @@ pub fn close_ai_chat() {
     });
 }
 
-pub fn request_settings(route: Signal<Route>, section: &'static str) {
+pub fn request_settings(_route: Signal<Route>, section: &'static str) {
     SETTINGS_INTENT.with(|slot| {
         if let Some(intent) = *slot.borrow() {
             intent.set(Some(section.to_string()));
         }
     });
-    route.set(Route::Settings);
+    navigate(Route::Settings);
 }
 
 pub fn settings_intent() -> Option<String> {
@@ -524,7 +535,7 @@ pub fn top_bar(route: Signal<Route>, auth: AuthSession, compact: Signal<bool>) -
                         .gap(px(8.0))
                         .mr(px(18.0))
                         .cursor_pointer()
-                        .on_press(move || route.set(Route::Dashboard))
+                        .on_press(move || navigate(Route::Dashboard))
                         .child(
                             image(crate::LOGO)
                                 .size(px(24.0))
@@ -649,7 +660,7 @@ fn privacy_action() -> impl IntoElement {
     crate::components::privacy_toggle::privacy_toggle(privacy_signal(), toggle_privacy)
 }
 
-fn avatar(route: Signal<Route>, auth: AuthSession) -> impl IntoElement {
+fn avatar(_route: Signal<Route>, auth: AuthSession) -> impl IntoElement {
     let name = auth
         .user
         .name
@@ -664,7 +675,7 @@ fn avatar(route: Signal<Route>, auth: AuthSession) -> impl IntoElement {
         .h(px(36.0))
         .w(px(36.0))
         .rounded(px(999.0))
-        .on_press(move || route.set(Route::Settings))
+        .on_press(move || navigate(Route::Settings))
         .child(crate::components::avatar::avatar_badge(
             32.0,
             &name,
@@ -694,7 +705,7 @@ fn nav_item(item: Route, route: Signal<Route>) -> impl IntoElement {
             }
         })
         .active(|s| s.bg(move || theme().muted))
-        .on_press(move || route.set(item))
+        .on_press(move || navigate(item))
         .child(image(item.icon()).size(px(18.0)).tint_color(move || {
             if active() {
                 theme().foreground
@@ -742,7 +753,7 @@ pub fn bottom_bar(route: Signal<Route>) -> impl IntoElement {
                 .items_center()
                 .justify_center()
                 .gap(px(2.0))
-                .on_press(move || route.set(item))
+                .on_press(move || navigate(item))
                 .child(image(item.icon()).size(px(18.0)).tint_color(move || {
                     if active() {
                         theme().foreground
