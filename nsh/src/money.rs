@@ -42,19 +42,72 @@ thread_local! {
         const { std::cell::RefCell::new(None) };
     static MONEY_DUPLICATE: std::cell::RefCell<Option<std::rc::Rc<dyn Fn(Kind, Uuid)>>> =
         const { std::cell::RefCell::new(None) };
+    static MONEY_NOTES: std::cell::RefCell<Option<std::rc::Rc<dyn Fn(Kind, Uuid)>>> =
+        const { std::cell::RefCell::new(None) };
+    static MONEY_SELECTED: std::cell::RefCell<Option<Signal<Vec<(Kind, Uuid)>>>> =
+        const { std::cell::RefCell::new(None) };
+    static MONEY_BULK: std::cell::RefCell<Option<Signal<bool>>> = const { std::cell::RefCell::new(None) };
 }
 
 fn set_money_actions(
     edit: std::rc::Rc<dyn Fn(Kind, Uuid)>,
     delete: std::rc::Rc<dyn Fn(Kind, Uuid)>,
     duplicate: std::rc::Rc<dyn Fn(Kind, Uuid)>,
+    notes: std::rc::Rc<dyn Fn(Kind, Uuid)>,
+    selected: Signal<Vec<(Kind, Uuid)>>,
+    bulk: Signal<bool>,
 ) {
     MONEY_EDIT.with(|slot| *slot.borrow_mut() = Some(edit));
     MONEY_DELETE.with(|slot| *slot.borrow_mut() = Some(delete));
     MONEY_DUPLICATE.with(|slot| *slot.borrow_mut() = Some(duplicate));
+    MONEY_NOTES.with(|slot| *slot.borrow_mut() = Some(notes));
+    MONEY_SELECTED.with(|slot| *slot.borrow_mut() = Some(selected));
+    MONEY_BULK.with(|slot| *slot.borrow_mut() = Some(bulk));
+}
+
+fn money_notes(kind: Kind, id: Uuid) {
+    if money_bulk_active() {
+        money_toggle(kind, id);
+        return;
+    }
+    MONEY_NOTES.with(|slot| {
+        if let Some(action) = slot.borrow().as_ref() {
+            action(kind, id);
+        }
+    });
+}
+
+fn money_bulk_active() -> bool {
+    MONEY_BULK.with(|slot| slot.borrow().as_ref().is_some_and(|bulk| bulk.get()))
+}
+
+fn money_is_selected(kind: Kind, id: Uuid) -> bool {
+    MONEY_SELECTED.with(|slot| {
+        slot.borrow()
+            .as_ref()
+            .is_some_and(|selected| selected.get().contains(&(kind, id)))
+    })
+}
+
+fn money_toggle(kind: Kind, id: Uuid) {
+    MONEY_SELECTED.with(|slot| {
+        if let Some(selected) = *slot.borrow() {
+            let mut values = selected.get();
+            if let Some(position) = values.iter().position(|value| *value == (kind, id)) {
+                values.remove(position);
+            } else {
+                values.push((kind, id));
+            }
+            selected.set(values);
+        }
+    });
 }
 
 fn money_edit(kind: Kind, id: Uuid) {
+    if money_bulk_active() {
+        money_toggle(kind, id);
+        return;
+    }
     MONEY_EDIT.with(|slot| {
         if let Some(action) = slot.borrow().as_ref() {
             action(kind, id);
@@ -63,6 +116,10 @@ fn money_edit(kind: Kind, id: Uuid) {
 }
 
 fn money_duplicate(kind: Kind, id: Uuid) {
+    if money_bulk_active() {
+        money_toggle(kind, id);
+        return;
+    }
     MONEY_DUPLICATE.with(|slot| {
         if let Some(action) = slot.borrow().as_ref() {
             action(kind, id);
@@ -71,6 +128,10 @@ fn money_duplicate(kind: Kind, id: Uuid) {
 }
 
 fn money_delete(kind: Kind, id: Uuid) {
+    if money_bulk_active() {
+        money_toggle(kind, id);
+        return;
+    }
     MONEY_DELETE.with(|slot| {
         if let Some(action) = slot.borrow().as_ref() {
             action(kind, id);
@@ -174,6 +235,8 @@ pub fn money(
     let filter = signal(Filter::All);
     let search = signal(String::new());
     let list_view = signal(false);
+    let bulk = signal(false);
+    let selected = signal(Vec::<(Kind, Uuid)>::new());
     let loading = move || {
         (subscriptions.loading() && subscriptions.get().is_none())
             || (transactions.loading() && transactions.get().is_none())
@@ -433,7 +496,108 @@ pub fn money(
         }
     };
     let delete_item: std::rc::Rc<dyn Fn(Kind, Uuid)> = std::rc::Rc::new(delete_item);
-    set_money_actions(edit_action.clone(), delete_item.clone(), duplicate_item);
+    let notes_item = {
+        let server = server.clone();
+        let token = token.clone();
+        move |kind: Kind, id: Uuid| {
+            let current = match kind {
+                Kind::Subscription | Kind::Budget => subscriptions
+                    .get()
+                    .unwrap_or_default()
+                    .subscriptions
+                    .into_iter()
+                    .find(|item| item.id == id)
+                    .and_then(|item| item.notes)
+                    .unwrap_or_default(),
+                Kind::Transaction => transactions
+                    .get()
+                    .unwrap_or_default()
+                    .transactions
+                    .into_iter()
+                    .find(|item| item.id == id)
+                    .and_then(|item| item.notes)
+                    .unwrap_or_default(),
+                Kind::Debt => debts
+                    .get()
+                    .unwrap_or_default()
+                    .debts
+                    .into_iter()
+                    .find(|item| item.id == id)
+                    .and_then(|item| item.notes)
+                    .unwrap_or_default(),
+            };
+            let value = signal(current);
+            let server = server.clone();
+            let token = token.clone();
+            modal.open(move || {
+                let save_value = value;
+                let save_kind = kind;
+                let save_id = id;
+                let save_server = server.clone();
+                let save_token = token.clone();
+                crate::components::dialog::dialog(
+                    crate::components::dialog::DialogProps::new(
+                        "Notes",
+                        "Keep context for this item.",
+                        move || modal.close(),
+                    )
+                    .width(460.0)
+                    .body(
+                        view().w_full().p(px(20.0)).child(
+                            crate::components::textarea::text_area(value, "Add notes…"),
+                        ).into_element(),
+                    )
+                    .footer(
+                        view().w_full().flex_row().justify_end().gap(px(8.0))
+                            .child(crate::ui::action_button("Cancel", false, move || modal.close()))
+                            .child(crate::ui::action_button("Save", false, move || {
+                                let notes = save_value.get();
+                                let server = save_server.clone();
+                                let token = save_token.clone();
+                                spawn(async move {
+                                    let body = if notes.trim().is_empty() {
+                                        serde_json::json!({ "notes": null })
+                                    } else {
+                                        serde_json::json!({ "notes": notes })
+                                    };
+                                    let result = match save_kind {
+                                        Kind::Subscription | Kind::Budget => {
+                                            api::update_subscription(server, token, save_id, &body).await.map(|_| ())
+                                        }
+                                        Kind::Transaction => {
+                                            api::update_transaction(server, token, save_id, &body).await.map(|_| ())
+                                        }
+                                        Kind::Debt => api::update_debt(server, token, save_id, &body).await.map(|_| ()),
+                                    };
+                                    match result {
+                                        Ok(()) => {
+                                            crate::components::toast::success("Notes saved.");
+                                            subscriptions.refetch();
+                                            transactions.refetch();
+                                            debts.refetch();
+                                            ui::bump_data();
+                                        }
+                                        Err(message) => crate::components::toast::error(message),
+                                    }
+                                    modal.close();
+                                });
+                            }))
+                            .into_element(),
+                    ),
+                )
+                .into_element()
+            });
+        }
+    };
+    let notes_item: std::rc::Rc<dyn Fn(Kind, Uuid)> = std::rc::Rc::new(notes_item);
+    set_money_actions(
+        edit_action.clone(),
+        delete_item.clone(),
+        duplicate_item,
+        notes_item,
+        selected,
+        bulk,
+    );
     view()
         .w_full()
         .flex_col()
@@ -460,6 +624,18 @@ pub fn money(
                 .items_center()
                 .gap(px(8.0))
                 .child(search_input(search, "Search money"))
+                .child(crate::components::button::icon_button_when(
+                    asset!("icons/square.svg"),
+                    "Select items",
+                    move || bulk.get(),
+                    move || {
+                        let next = !bulk.get();
+                        bulk.set(next);
+                        if !next {
+                            selected.set(Vec::new());
+                        }
+                    },
+                ))
                 .child(
                     view()
                         .flex_row()
@@ -480,6 +656,60 @@ pub fn money(
                 ),
         )
         .child(chips(filter, items.clone()))
+        .child(
+            when(
+                move || bulk.get(),
+                move || {
+                    let count = selected.get().len();
+                    let all = items();
+                    view()
+                        .w_full()
+                        .flex_row()
+                        .flex_wrap()
+                        .items_center()
+                        .gap(px(8.0))
+                        .p(px(10.0))
+                        .rounded(px(8.0))
+                        .border(px(1.0))
+                        .border_color(move || theme().primary.opacity(0.4))
+                        .bg(move || theme().primary.opacity(0.06))
+                        .child(text(format!("{count} selected")).text_size(px(12.0)).font_weight(FontWeight::SEMIBOLD).text_color(move || theme().foreground))
+                        .child(crate::ui::action_button("Select all", false, move || {
+                            selected.set(all.iter().map(|item| (item.kind, item.id)).collect());
+                        }))
+                        .child(crate::ui::action_button("Clear", false, move || selected.set(Vec::new())))
+                        .child(crate::ui::action_button("Delete", true, {
+                            let server = server_signal;
+                            let token = token_signal;
+                            move || {
+                                let values = selected.get();
+                                if values.is_empty() {
+                                    return;
+                                }
+                                let server = server.get();
+                                let token = token.get();
+                                spawn(async move {
+                                    for (kind, id) in values {
+                                        let _ = match kind {
+                                            Kind::Subscription | Kind::Budget => api::delete_subscription(server.clone(), token.clone(), id).await,
+                                            Kind::Transaction => api::delete_transaction(server.clone(), token.clone(), id).await,
+                                            Kind::Debt => api::delete_debt(server.clone(), token.clone(), id).await,
+                                        };
+                                    }
+                                    selected.set(Vec::new());
+                                    bulk.set(false);
+                                    subscriptions.refetch();
+                                    transactions.refetch();
+                                    debts.refetch();
+                                    ui::bump_data();
+                                });
+                            }
+                        }))
+                        .into_element()
+                },
+            )
+            .otherwise(|| view().h(px(0.0)).into_element()),
+        )
         .child(
             when(loading, || {
                 card()
@@ -803,6 +1033,19 @@ fn grid_card(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyEle
         .w_full()
         .p(px(18.0))
         .gap(px(12.0))
+        .cursor_pointer()
+        .border_color(move || {
+            if money_is_selected(kind, item_id) {
+                theme().primary
+            } else {
+                theme().border
+            }
+        })
+        .on_press(move || {
+            if money_bulk_active() {
+                money_toggle(kind, item_id);
+            }
+        })
         .child(
             view()
                 .w_full()
@@ -858,6 +1101,7 @@ fn grid_card(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyEle
                                 .text_size(px(11.0))
                                 .text_color(move || theme().muted_foreground),
                         )
+                        .child(crate::ui::mini_icon_button(asset!("icons/notes.svg"), false, move || money_notes(kind, item_id)))
                         .child(crate::ui::mini_icon_button(asset!("icons/pencil.svg"), false, move || money_edit(kind, item_id)))
                         .child(crate::ui::mini_icon_button(asset!("icons/copy.svg"), false, move || money_duplicate(kind, item_id)))
                         .child(crate::ui::mini_icon_button(asset!("icons/trash.svg"), true, move || money_delete(kind, item_id))),
@@ -894,10 +1138,22 @@ fn list_row(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyElem
     view()
         .w_full()
         .rounded(px(12.0))
+        .cursor_pointer()
         .border(px(1.0))
-        .border_color(move || theme().border)
+        .border_color(move || {
+            if money_is_selected(kind, item_id) {
+                theme().primary
+            } else {
+                theme().border
+            }
+        })
         .bg(move || theme().card)
         .p(px(14.0))
+        .on_press(move || {
+            if money_bulk_active() {
+                money_toggle(kind, item_id);
+            }
+        })
         .child(
             view()
                 .w_full()
@@ -952,6 +1208,7 @@ fn list_row(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyElem
                 ))
                 .child(
                     view().flex_row().items_center().gap(px(4.0))
+                        .child(crate::ui::mini_icon_button(asset!("icons/notes.svg"), false, move || money_notes(kind, item_id)))
                         .child(crate::ui::mini_icon_button(asset!("icons/pencil.svg"), false, move || money_edit(kind, item_id)))
                         .child(crate::ui::mini_icon_button(asset!("icons/copy.svg"), false, move || money_duplicate(kind, item_id)))
                         .child(crate::ui::mini_icon_button(asset!("icons/trash.svg"), true, move || money_delete(kind, item_id))),
