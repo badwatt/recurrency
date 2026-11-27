@@ -284,9 +284,6 @@ pub fn open_menu(placement: MenuPlacement, build: impl Fn() -> AnyElement + 'sta
     });
 }
 
-pub fn menu_revision() -> u64 {
-    MENU_VERSION.with(|slot| slot.borrow().map_or(0, |version| version.get()))
-}
 
 /// Whether the app-wide menu host currently owns an open surface.
 pub fn menu_open() -> bool {

@@ -247,7 +247,6 @@ pub fn subscriptions(
         editing.set(None);
         active.set(true);
         form_open.set(true);
-        crate::components::dialog::reset_dialog_scroll();
         #[cfg(target_arch = "wasm32")]
         crate::web_files::clear_dialog_scroll("subscription-form");
         modal.open(move || {
@@ -599,7 +598,6 @@ pub fn open_create_dialog_kind(
     };
     let server_signal = signal(server);
     let token_signal = signal(token);
-    crate::components::dialog::reset_dialog_scroll();
     modal.open(move || form(data, form_signals, server_signal, token_signal, modal).into_element());
 }
 
