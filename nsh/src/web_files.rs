@@ -83,7 +83,12 @@ pub fn install_search_escape() {
             let Ok(input) = target.dyn_into::<HtmlInputElement>() else {
                 return;
             };
-            if input.placeholder() != "Search" {
+            // Every search field in the app: the lists' "Search", "Search
+            // money", "Search logo"…
+            if !input.placeholder().starts_with("Search") {
+                return;
+            }
+            if input.value().is_empty() {
                 return;
             }
             input.set_value("");

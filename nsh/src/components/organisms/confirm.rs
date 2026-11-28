@@ -84,21 +84,9 @@ pub fn confirm_dialog(props: ConfirmProps) -> impl IntoElement {
                     )
                     .into_element(),
             )
-            .footer(
-                view()
-                    .w_full()
-                    .flex_row()
-                    .justify_end()
-                    .gap(px(8.0))
-                    .child(crate::ui::action_button("Cancel", false, move || {
-                        on_cancel()
-                    }))
-                    .child(crate::ui::action_button(
-                        confirm_label.clone(),
-                        true,
-                        move || confirm(),
-                    ))
-                    .into_element(),
-            ),
+            .footer(crate::ui::dialog_actions(
+                crate::ui::DialogAction::destructive(confirm_label.clone(), move || confirm()),
+                crate::ui::DialogAction::new("Cancel", false, move || on_cancel()),
+            )),
     )
 }

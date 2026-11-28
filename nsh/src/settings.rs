@@ -947,35 +947,29 @@ fn account_card(
                             )
                             .into_element(),
                     )
-                    .footer(
-                        view()
-                            .w_full()
-                            .flex_row()
-                            .justify_end()
-                            .gap(px(8.0))
-                            .child(ui::action_button("Cancel", false, move || modal.close()))
-                            .child(ui::action_button("Confirm deletion", true, move || {
-                                let password = delete_password.get();
-                                if password.is_empty() {
-                                    delete_error.set("Enter your password.".to_string());
-                                    return;
-                                }
-                                let server = confirm_server.clone();
-                                let token = confirm_token.clone();
-                                spawn(async move {
-                                    match crate::api::delete_account(server, token, password).await
-                                    {
-                                        Ok(()) => {
-                                            modal.close();
-                                            auth::clear_session();
-                                            session.set(Session::SignedOut);
-                                        }
-                                        Err(message) => delete_error.set(message),
+                    .footer(crate::ui::footer_layout(
+                        ui::action_button("Cancel", false, move || modal.close()).into_element(),
+                        ui::action_button("Confirm deletion", true, move || {
+                            let password = delete_password.get();
+                            if password.is_empty() {
+                                delete_error.set("Enter your password.".to_string());
+                                return;
+                            }
+                            let server = confirm_server.clone();
+                            let token = confirm_token.clone();
+                            spawn(async move {
+                                match crate::api::delete_account(server, token, password).await {
+                                    Ok(()) => {
+                                        modal.close();
+                                        auth::clear_session();
+                                        session.set(Session::SignedOut);
                                     }
-                                });
-                            }))
-                            .into_element(),
-                    ),
+                                    Err(message) => delete_error.set(message),
+                                }
+                            });
+                        })
+                        .into_element(),
+                    )),
                 )
                 .into_element()
             });
@@ -4129,20 +4123,11 @@ fn entity_dialog(
                     ))
                     .into_element(),
             )
-            .footer(
-                view()
-                    .w_full()
-                    .flex_row()
-                    .justify_end()
-                    .gap(px(8.0))
-                    .child(dialog_button("Cancel", false, close))
-                    .child(dialog_button(
-                        if busy.get() { "Saving..." } else { "Save" },
-                        true,
-                        save,
-                    ))
+            .footer(crate::ui::dialog_footer(
+                dialog_button("Cancel", false, close).into_element(),
+                dialog_button(if busy.get() { "Saving..." } else { "Save" }, true, save)
                     .into_element(),
-            ),
+            )),
     )
     .into_element()
 }
@@ -4155,6 +4140,7 @@ fn dialog_button(
     let label = label.into();
     button()
         .cursor_pointer()
+        .when(crate::ui::compact_active(), |button| button.w_full())
         .h(px(40.0))
         .px(px(16.0))
         .items_center()
@@ -4539,29 +4525,20 @@ fn admin_card(server: String, token: String, modal: ui::ModalHost) -> impl IntoE
                                                                 move || modal.close(),
                                                             )
                                                             .width(420.0)
-                                                            .footer(
-                                                                view()
-                                                                    .w_full()
-                                                                    .flex_row()
-                                                                    .justify_end()
-                                                                    .gap(px(8.0))
-                                                                    .child(crate::components::button::button(
-                                                                        crate::components::button::ButtonProps::new("Delete user")
-                                                                            .variant(crate::components::button::ButtonVariant::Destructive)
-                                                                            .size(crate::components::button::ButtonSize::Sm)
-                                                                            .on_press(move || {
-                                                                                delete(id);
-                                                                                modal.close();
-                                                                            }),
-                                                                    ))
-                                                                    .child(crate::components::button::button(
-                                                                        crate::components::button::ButtonProps::new("Cancel")
-                                                                            .variant(crate::components::button::ButtonVariant::Outline)
-                                                                            .size(crate::components::button::ButtonSize::Sm)
-                                                                            .on_press(move || modal.close()),
-                                                                    ))
-                                                                    .into_element(),
-                                                            )
+                                                            .footer(crate::ui::dialog_actions(
+                                                                crate::ui::DialogAction::destructive(
+                                                                    "Delete user",
+                                                                    move || {
+                                                                        delete(id);
+                                                                        modal.close();
+                                                                    },
+                                                                ),
+                                                                crate::ui::DialogAction::new(
+                                                                    "Cancel",
+                                                                    false,
+                                                                    move || modal.close(),
+                                                                ),
+                                                            ))
                                                         )
                                                         .into_element()
                                                     });

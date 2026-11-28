@@ -6,42 +6,54 @@ use std::rc::Rc;
 
 pub type ModalBuilder = Rc<dyn Fn() -> AnyElement>;
 
+thread_local! {
+    /// The open dialog's builder. It lives beside the component tree, so a
+    /// shell that renders again keeps the dialog instead of losing it.
+    static SLOT: std::cell::RefCell<Option<ModalBuilder>> = const {
+        std::cell::RefCell::new(None)
+    };
+}
+
+/// The host every screen opens its dialogs on.
 #[derive(Clone, Copy)]
 pub struct DialogHost {
-    slot: Stored<Option<ModalBuilder>>,
     version: Signal<u64>,
 }
 
 impl DialogHost {
     pub fn new() -> Self {
         Self {
-            slot: stored(None),
-            version: signal(0),
+            version: crate::ui::dialog_version(),
+        }
+    }
+
+    fn bump(&self) {
+        if let Some(version) = self.version.try_get() {
+            let _ = self.version.try_set(version.wrapping_add(1));
         }
     }
 
     pub fn open(&self, build: impl Fn() -> AnyElement + 'static) {
-        self.slot.replace(Some(Rc::new(build)));
-        self.version.set(self.version.get().wrapping_add(1));
+        SLOT.with(|slot| *slot.borrow_mut() = Some(Rc::new(build)));
+        self.bump();
     }
 
     pub fn close(&self) {
         // Anything the dialog opened (a menu, a picker) captured its signals:
         // it goes before they do.
         crate::ui::close_menu();
-        self.slot.replace(None);
-        self.version.set(self.version.get().wrapping_add(1));
+        SLOT.with(|slot| *slot.borrow_mut() = None);
+        self.bump();
     }
 
     pub fn active(&self) -> bool {
-        self.version.get();
-        self.slot.with(|slot| slot.is_some())
+        let _ = self.version.try_get();
+        SLOT.with(|slot| slot.borrow().is_some())
     }
 
     pub fn render(&self) -> AnyElement {
-        self.slot
-            .with(|slot| slot.clone())
-            .map_or_else(|| view().h(px(0.0)).into_element(), |build| build())
+        let build = SLOT.with(|slot| slot.borrow().clone());
+        build.map_or_else(|| view().h(px(0.0)).into_element(), |build| build())
     }
 }
 

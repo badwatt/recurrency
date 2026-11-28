@@ -135,6 +135,8 @@ pub fn App() -> impl IntoElement {
     crate::theme::apply(&crate::theme::saved());
     crate::format::init_date_format();
     ui::init_privacy();
+    let _ = ui::dialog_version();
+    let _ = ui::create_tick();
     ui::init_logo_modal();
     let route = signal(ui::stored_route());
     ui::init_route(route);
@@ -203,11 +205,21 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
     let notification_auth = chat_auth.clone();
     let creator_auth = auth.clone();
     let auth_signal = signal(auth);
-    let compact = signal(false);
+    let compact = ui::compact_signal();
     ui::init_compact(compact);
     ui::init_selects();
     let modal = ui::ModalHost::new();
     ui::init_modal_host(modal);
+    effect(move || {
+        let _ = ui::create_tick().get();
+        match ui::take_create() {
+            Some(ui::Create::Subscription) => ui::create_subscription(None),
+            Some(ui::Create::Budget) => ui::create_budget(None),
+            Some(ui::Create::Transaction) => ui::create_transaction(None),
+            Some(ui::Create::Debt) => ui::create_debt(None),
+            None => {}
+        }
+    });
     ui::init_subscription_creator({
         let auth = creator_auth.clone();
         move |date| crate::subscriptions::open_create_dialog(auth.clone(), modal, date)
@@ -244,7 +256,7 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
         .flex_1()
         .on_layout(
             move |bounds: &nsh_core::geometry::Bounds<nsh_core::geometry::Points>| {
-                compact.set(bounds.size.width.0 < 900.0);
+                compact.set(bounds.size.width.0 < ui::COMPACT_BELOW);
             },
         )
         .bg(move || theme().background)
@@ -324,7 +336,8 @@ fn app_shell(route: Signal<Route>, session: Signal<Session>) -> AnyElement {
                             })
                             .pb(move || {
                                 if compact.get() && route.get() != Route::Settings {
-                                    px(76.0)
+                                    // Room for the floating button and the bar.
+                                    px(120.0)
                                 } else {
                                     px(16.0)
                                 }

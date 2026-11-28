@@ -167,18 +167,10 @@ pub fn notifications_modal(auth: AuthSession) -> AnyElement {
                 .child(view().w_full().flex_col().gap(px(2.0)).children(rows()))
                 .into_element(),
         )
-        .footer(
-            view()
-                .w_full()
-                .flex_row()
-                .justify_end()
-                .gap(px(8.0))
-                .child(crate::ui::action_button("Mark all read", false, mark_all))
-                .child(crate::ui::action_button("Close", false, move || {
-                    crate::ui::close_notifications()
-                }))
-                .into_element(),
-        ),
+        .footer(crate::ui::dialog_actions(
+            crate::ui::DialogAction::new("Close", false, move || crate::ui::close_notifications()),
+            crate::ui::DialogAction::new("Mark all read", false, mark_all),
+        )),
     )
     .into_element()
 }

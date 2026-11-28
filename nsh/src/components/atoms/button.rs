@@ -49,7 +49,7 @@ pub enum ButtonRadius {
 }
 
 impl ButtonSize {
-    fn height(self) -> f32 {
+    pub(crate) fn height(self) -> f32 {
         match self {
             Self::Xs => 26.0,
             Self::Sm => 38.0,
@@ -253,7 +253,9 @@ pub fn button(props: ButtonProps) -> impl IntoElement {
     let selected_icon = selected_when;
     let label_color = move || match variant {
         ButtonVariant::Primary => theme().primary_foreground,
-        ButtonVariant::Destructive => theme().foreground,
+        // A red fill takes dark text: the app's destructive buttons read that
+        // way everywhere.
+        ButtonVariant::Destructive => crate::theme::on_destructive(),
         _ => theme().foreground,
     };
     base_button()

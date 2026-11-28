@@ -124,9 +124,15 @@ fn navigation(
         .p(px(2.0))
         .gap(px(4.0))
         .rounded(px(8.0))
-        .border(px(1.0))
+        .border(px(if compact { 0.0 } else { 1.0 }))
         .border_color(move || theme().border)
-        .bg(move || theme().card)
+        .bg(move || {
+            if compact {
+                theme().background.opacity(0.0)
+            } else {
+                theme().card
+            }
+        })
         .child(nav_arrow(
             asset!("icons/chevron-left.svg"),
             "Previous month",
@@ -163,26 +169,30 @@ fn navigation(
         .border_color(move || theme().border)
         .child(group)
         .child(
-            button()
-                .cursor_pointer()
-                .items_center()
-                .justify_center()
-                .h(px(36.0))
-                .px(if compact { px(8.0) } else { px(12.0) })
-                .rounded(px(8.0))
-                .border(px(1.0))
-                .border_color(move || theme().border)
-                .bg(move || theme().background)
-                .on_press(move || {
-                    year.set(today.year());
-                    month.set(today.month());
-                })
-                .child(
-                    text("Today")
-                        .text_size(px(12.0))
-                        .font_weight(FontWeight::MEDIUM)
-                        .text_color(move || theme().foreground),
-                ),
+            when(!compact, move || {
+                button()
+                    .cursor_pointer()
+                    .items_center()
+                    .justify_center()
+                    .h(px(36.0))
+                    .px(px(12.0))
+                    .rounded(px(8.0))
+                    .border(px(1.0))
+                    .border_color(move || theme().border)
+                    .bg(move || theme().background)
+                    .on_press(move || {
+                        year.set(today.year());
+                        month.set(today.month());
+                    })
+                    .child(
+                        text("Today")
+                            .text_size(px(12.0))
+                            .font_weight(FontWeight::MEDIUM)
+                            .text_color(move || theme().foreground),
+                    )
+                    .into_element()
+            })
+            .otherwise(|| view().h(px(0.0)).into_element()),
         )
 }
 

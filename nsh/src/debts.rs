@@ -422,61 +422,59 @@ fn payment_form(
                 )
                 .into_element(),
         )
-        .footer(
-            view()
-                .w_full()
-                .flex_row()
-                .justify_end()
-                .gap(px(8.0))
-                .child(
-                    button()
-                        .cursor_pointer()
-                        .items_center()
-                        .justify_center()
-                        .h(px(40.0))
-                        .px(px(16.0))
-                        .rounded(px(6.0))
-                        .border(px(1.0))
-                        .border_color(move || theme().border)
-                        .bg(move || theme().card)
-                        .on_press(move || {
-                            pay_id.set(None);
-                            modal.close();
-                        })
-                        .child(
-                            text("Cancel")
-                                .text_size(px(14.0))
-                                .font_weight(FontWeight::MEDIUM)
-                                .text_color(move || theme().foreground),
-                        ),
-                )
-                .child(
-                    button()
-                        .cursor_pointer()
-                        .items_center()
-                        .justify_center()
-                        .h(px(40.0))
-                        .px(px(14.0))
-                        .rounded(px(6.0))
-                        .bg(move || theme().primary)
-                        .disabled(move || saving.get())
-                        .disabled_style(|state| state.opacity(0.5))
-                        .on_press(move || save())
-                        .child(
-                            text(move || {
-                                if saving.get() {
-                                    "Saving..."
-                                } else {
-                                    "Record payment"
-                                }
-                            })
+        .footer(crate::ui::footer_layout(
+            {
+                button()
+                    .cursor_pointer()
+                    .items_center()
+                    .justify_center()
+                    .when(crate::ui::compact_active(), |button| button.w_full())
+                    .h(px(40.0))
+                    .px(px(16.0))
+                    .rounded(px(6.0))
+                    .border(px(1.0))
+                    .border_color(move || theme().border)
+                    .bg(move || theme().card)
+                    .on_press(move || {
+                        pay_id.set(None);
+                        modal.close();
+                    })
+                    .child(
+                        text("Cancel")
                             .text_size(px(14.0))
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .text_color(move || theme().primary_foreground),
-                        ),
-                )
-                .into_element(),
-        ),
+                            .font_weight(FontWeight::MEDIUM)
+                            .text_color(move || theme().foreground),
+                    )
+                    .into_element()
+            },
+            {
+                button()
+                    .cursor_pointer()
+                    .items_center()
+                    .justify_center()
+                    .when(crate::ui::compact_active(), |button| button.w_full())
+                    .h(px(40.0))
+                    .px(px(14.0))
+                    .rounded(px(6.0))
+                    .bg(move || theme().primary)
+                    .disabled(move || saving.get())
+                    .disabled_style(|state| state.opacity(0.5))
+                    .on_press(move || save())
+                    .child(
+                        text(move || {
+                            if saving.get() {
+                                "Saving..."
+                            } else {
+                                "Record payment"
+                            }
+                        })
+                        .text_size(px(14.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(move || theme().primary_foreground),
+                    )
+                    .into_element()
+            },
+        )),
     )
 }
 
@@ -719,16 +717,10 @@ fn bulk_bar(
                         move || modal.close(),
                     )
                     .width(420.0)
-                    .footer(
-                        view()
-                            .w_full()
-                            .flex_row()
-                            .justify_end()
-                            .gap(px(8.0))
-                            .child(ui::action_button("Delete", true, move || delete()))
-                            .child(ui::action_button("Cancel", false, move || modal.close()))
-                            .into_element(),
-                    ),
+                    .footer(crate::ui::dialog_actions(
+                        crate::ui::DialogAction::destructive("Delete", move || delete()),
+                        crate::ui::DialogAction::new("Cancel", false, move || modal.close()),
+                    )),
                 )
                 .into_element()
             });
@@ -1078,15 +1070,15 @@ fn form(
         move |next| match next {
             "subscription" => {
                 modal.close();
-                crate::ui::create_subscription(None);
+                crate::ui::request_create(crate::ui::Create::Subscription);
             }
             "budget" => {
                 modal.close();
-                crate::ui::create_budget(None);
+                crate::ui::request_create(crate::ui::Create::Budget);
             }
             "transaction" => {
                 modal.close();
-                crate::ui::create_transaction(None);
+                crate::ui::request_create(crate::ui::Create::Transaction);
             }
             _ => {}
         },
@@ -1251,64 +1243,62 @@ fn form(
                 )
                 .into_element(),
         )
-        .footer(
-            view()
-                .w_full()
-                .flex_row()
-                .justify_end()
-                .gap(px(8.0))
-                .child(
-                    button()
-                        .cursor_pointer()
-                        .items_center()
-                        .justify_center()
-                        .h(px(40.0))
-                        .px(px(16.0))
-                        .rounded(px(6.0))
-                        .border(px(1.0))
-                        .border_color(move || theme().border)
-                        .bg(move || theme().card)
-                        .on_press(move || {
-                            editing.set(None);
-                            form_open.set(false);
-                            modal.close();
-                        })
-                        .child(
-                            text("Cancel")
-                                .text_size(px(14.0))
-                                .font_weight(FontWeight::MEDIUM)
-                                .text_color(move || theme().foreground),
-                        ),
-                )
-                .child(
-                    button()
-                        .cursor_pointer()
-                        .items_center()
-                        .justify_center()
-                        .h(px(40.0))
-                        .px(px(14.0))
-                        .rounded(px(6.0))
-                        .bg(move || theme().primary)
-                        .disabled(move || saving.get())
-                        .disabled_style(|state| state.opacity(0.5))
-                        .on_press(move || save())
-                        .child(
-                            text(move || {
-                                if saving.get() {
-                                    "Saving..."
-                                } else if editing.get().is_some() {
-                                    "Save changes"
-                                } else {
-                                    "Add Debt"
-                                }
-                            })
+        .footer(crate::ui::footer_layout(
+            {
+                button()
+                    .cursor_pointer()
+                    .items_center()
+                    .justify_center()
+                    .when(crate::ui::compact_active(), |button| button.w_full())
+                    .h(px(40.0))
+                    .px(px(16.0))
+                    .rounded(px(6.0))
+                    .border(px(1.0))
+                    .border_color(move || theme().border)
+                    .bg(move || theme().card)
+                    .on_press(move || {
+                        editing.set(None);
+                        form_open.set(false);
+                        modal.close();
+                    })
+                    .child(
+                        text("Cancel")
                             .text_size(px(14.0))
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .text_color(move || theme().primary_foreground),
-                        ),
-                )
-                .into_element(),
-        ),
+                            .font_weight(FontWeight::MEDIUM)
+                            .text_color(move || theme().foreground),
+                    )
+                    .into_element()
+            },
+            {
+                button()
+                    .cursor_pointer()
+                    .items_center()
+                    .justify_center()
+                    .when(crate::ui::compact_active(), |button| button.w_full())
+                    .h(px(40.0))
+                    .px(px(14.0))
+                    .rounded(px(6.0))
+                    .bg(move || theme().primary)
+                    .disabled(move || saving.get())
+                    .disabled_style(|state| state.opacity(0.5))
+                    .on_press(move || save())
+                    .child(
+                        text(move || {
+                            if saving.get() {
+                                "Saving..."
+                            } else if editing.get().is_some() {
+                                "Save changes"
+                            } else {
+                                "Add Debt"
+                            }
+                        })
+                        .text_size(px(14.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(move || theme().primary_foreground),
+                    )
+                    .into_element()
+            },
+        )),
     )
 }
 

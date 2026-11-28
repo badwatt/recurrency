@@ -140,6 +140,9 @@ fn day_grid(days: Signal<Vec<u8>>) -> impl IntoElement {
                         theme().card
                     }
                 })
+                // It closes the last row of the grid: two cells wide so its
+                // label fits on one line.
+                .col_span(2)
                 .on_press(move || {
                     let mut selected = days.get();
                     if selected.contains(&0) {
@@ -152,6 +155,7 @@ fn day_grid(days: Signal<Vec<u8>>) -> impl IntoElement {
                 })
                 .child(
                     text("Last day")
+                        .number_of_lines(1)
                         .text_size(px(11.0))
                         .font_weight(FontWeight::MEDIUM)
                         .text_color(move || {

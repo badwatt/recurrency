@@ -833,11 +833,11 @@ fn form(
             "subscription" | "budget" => kind.set(next.to_string()),
             "transaction" => {
                 modal.close();
-                crate::ui::create_transaction(None);
+                crate::ui::request_create(crate::ui::Create::Transaction);
             }
             "debt" => {
                 modal.close();
-                crate::ui::create_debt(None);
+                crate::ui::request_create(crate::ui::Create::Debt);
             }
             _ => {}
         },
@@ -970,64 +970,62 @@ fn form(
                 )
                 .into_element(),
         )
-        .footer(
-            view()
-                .w_full()
-                .flex_row()
-                .justify_end()
-                .gap(px(8.0))
-                .child(
-                    button()
-                        .cursor_pointer()
-                        .items_center()
-                        .justify_center()
-                        .h(px(40.0))
-                        .px(px(17.0))
-                        .rounded(px(7.0))
-                        .border(px(1.0))
-                        .border_color(move || theme().border)
-                        .bg(move || theme().card)
-                        .on_press(move || {
-                            editing.set(None);
-                            form_open.set(false);
-                            modal.close();
-                        })
-                        .child(
-                            text("Cancel")
-                                .text_size(px(14.0))
-                                .font_weight(FontWeight::MEDIUM)
-                                .text_color(move || theme().foreground),
-                        ),
-                )
-                .child(
-                    button()
-                        .cursor_pointer()
-                        .items_center()
-                        .justify_center()
-                        .h(px(40.0))
-                        .px(px(14.0))
-                        .rounded(px(7.0))
-                        .bg(move || theme().primary)
-                        .disabled(move || saving.get())
-                        .disabled_style(|state| state.opacity(0.5))
-                        .on_press(move || save())
-                        .child(
-                            text(move || {
-                                if saving.get() {
-                                    "Saving..."
-                                } else if editing.get().is_some() {
-                                    "Save Changes"
-                                } else {
-                                    "Add Subscription"
-                                }
-                            })
+        .footer(crate::ui::footer_layout(
+            {
+                button()
+                    .cursor_pointer()
+                    .items_center()
+                    .justify_center()
+                    .when(crate::ui::compact_active(), |button| button.w_full())
+                    .h(px(40.0))
+                    .px(px(17.0))
+                    .rounded(px(7.0))
+                    .border(px(1.0))
+                    .border_color(move || theme().border)
+                    .bg(move || theme().card)
+                    .on_press(move || {
+                        editing.set(None);
+                        form_open.set(false);
+                        modal.close();
+                    })
+                    .child(
+                        text("Cancel")
                             .text_size(px(14.0))
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .text_color(move || theme().primary_foreground),
-                        ),
-                )
-                .into_element(),
-        ),
+                            .font_weight(FontWeight::MEDIUM)
+                            .text_color(move || theme().foreground),
+                    )
+                    .into_element()
+            },
+            {
+                button()
+                    .cursor_pointer()
+                    .items_center()
+                    .justify_center()
+                    .when(crate::ui::compact_active(), |button| button.w_full())
+                    .h(px(40.0))
+                    .px(px(14.0))
+                    .rounded(px(7.0))
+                    .bg(move || theme().primary)
+                    .disabled(move || saving.get())
+                    .disabled_style(|state| state.opacity(0.5))
+                    .on_press(move || save())
+                    .child(
+                        text(move || {
+                            if saving.get() {
+                                "Saving..."
+                            } else if editing.get().is_some() {
+                                "Save Changes"
+                            } else {
+                                "Add Subscription"
+                            }
+                        })
+                        .text_size(px(14.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(move || theme().primary_foreground),
+                    )
+                    .into_element()
+            },
+        )),
     )
 }
 
@@ -2056,26 +2054,10 @@ fn bulk_bar(
                         move || modal.close(),
                     )
                     .width(420.0)
-                    .footer(
-                        view()
-                            .w_full()
-                            .flex_row()
-                            .justify_end()
-                            .gap(px(8.0))
-                            .child(shared_button(
-                                ButtonProps::new("Delete")
-                                    .variant(ButtonVariant::Destructive)
-                                    .size(ButtonSize::Sm)
-                                    .on_press(move || delete()),
-                            ))
-                            .child(shared_button(
-                                ButtonProps::new("Cancel")
-                                    .variant(ButtonVariant::Outline)
-                                    .size(ButtonSize::Sm)
-                                    .on_press(move || modal.close()),
-                            ))
-                            .into_element(),
-                    ),
+                    .footer(crate::ui::dialog_actions(
+                        crate::ui::DialogAction::destructive("Delete", move || delete()),
+                        crate::ui::DialogAction::new("Cancel", false, move || modal.close()),
+                    )),
                 )
                 .into_element()
             });
@@ -2242,24 +2224,19 @@ fn notes_form(
                 )
                 .into_element(),
         )
-        .footer(
-            view()
-                .w_full()
-                .flex_row()
-                .justify_end()
-                .gap(px(8.0))
-                .child(ui::action_button("Cancel", false, move || modal.close()))
-                .child(ui::action_button(
-                    if saving.get() {
-                        "Saving…"
-                    } else {
-                        "Save notes"
-                    },
-                    false,
-                    save,
-                ))
-                .into_element(),
-        ),
+        .footer(crate::ui::footer_layout(
+            ui::action_button("Cancel", false, move || modal.close()).into_element(),
+            ui::action_button(
+                if saving.get() {
+                    "Saving…"
+                } else {
+                    "Save notes"
+                },
+                true,
+                save,
+            )
+            .into_element(),
+        )),
     )
 }
 

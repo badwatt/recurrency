@@ -220,6 +220,9 @@ struct Item {
     /// The date the row shows: next billing, the payment's own date or the
     /// next debt instalment. Sorting by date uses it.
     date: Option<chrono::NaiveDate>,
+    /// Whether it still counts: cancelled, finished by its end date or a
+    /// one-off payment from another month go to the inactive list.
+    active: bool,
     updated: i64,
 }
 
@@ -507,13 +510,29 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
     let delete_item = {
         let server = server.clone();
         let token = token.clone();
+        let delete_currency = currency.clone();
         move |kind: Kind, id: Uuid| {
             let server = server.clone();
             let token = token.clone();
+            // What is about to go, shown in the dialog so it can be checked.
+            let doomed = items()
+                .into_iter()
+                .find(|entry| entry.kind == kind && entry.id == id);
+            let base_rates = subscriptions
+                .get()
+                .map(|data| data.rates)
+                .or_else(|| transactions.get().map(|data| data.rates))
+                .or_else(|| debts.get().map(|data| data.rates))
+                .unwrap_or_default();
+            let rates = stored(base_rates);
+            let shown_currency = stored(delete_currency.clone());
             modal.open(move || {
                 let close = move || modal.close();
                 let server = server.clone();
                 let token = token.clone();
+                let doomed = doomed.clone();
+                let rates = rates;
+                let shown_currency = shown_currency;
                 crate::components::dialog::dialog(
                     crate::components::dialog::DialogProps::new(
                         "Delete this item?",
@@ -521,43 +540,51 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
                         close,
                     )
                     .width(420.0)
-                    .footer(
+                    .body(
                         view()
                             .w_full()
-                            .flex_row()
-                            .justify_end()
-                            .gap(px(8.0))
-                            .child(crate::ui::action_button("Cancel", false, move || {
-                                modal.close()
-                            }))
-                            .child(crate::ui::action_button("Delete", true, move || {
-                                let server = server.clone();
-                                let token = token.clone();
-                                spawn(async move {
-                                    let result = match kind {
-                                        Kind::Subscription | Kind::Budget => {
-                                            api::delete_subscription(server, token, id).await
-                                        }
-                                        Kind::Transaction => {
-                                            api::delete_transaction(server, token, id).await
-                                        }
-                                        Kind::Debt => api::delete_debt(server, token, id).await,
-                                    };
-                                    match result {
-                                        Ok(()) => {
-                                            crate::components::toast::success("Deleted.");
-                                            subscriptions.refetch();
-                                            transactions.refetch();
-                                            debts.refetch();
-                                            ui::bump_data();
-                                        }
-                                        Err(message) => crate::components::toast::error(message),
-                                    }
-                                    modal.close();
-                                });
-                            }))
+                            .p(px(20.0))
+                            .child(doomed.as_ref().map_or_else(
+                                || view().h(px(0.0)).into_element(),
+                                |entry| {
+                                    delete_summary(
+                                        entry,
+                                        &shown_currency.with(|value| value.clone()),
+                                        &rates.with(|value| value.clone()),
+                                    )
+                                },
+                            ))
                             .into_element(),
-                    ),
+                    )
+                    .footer(crate::ui::dialog_actions(
+                        crate::ui::DialogAction::destructive("Delete", move || {
+                            let server = server.clone();
+                            let token = token.clone();
+                            spawn(async move {
+                                let result = match kind {
+                                    Kind::Subscription | Kind::Budget => {
+                                        api::delete_subscription(server, token, id).await
+                                    }
+                                    Kind::Transaction => {
+                                        api::delete_transaction(server, token, id).await
+                                    }
+                                    Kind::Debt => api::delete_debt(server, token, id).await,
+                                };
+                                match result {
+                                    Ok(()) => {
+                                        crate::components::toast::success("Deleted.");
+                                        subscriptions.refetch();
+                                        transactions.refetch();
+                                        debts.refetch();
+                                        ui::bump_data();
+                                    }
+                                    Err(message) => crate::components::toast::error(message),
+                                }
+                                modal.close();
+                            });
+                        }),
+                        crate::ui::DialogAction::new("Cancel", false, move || modal.close()),
+                    )),
                 )
                 .into_element()
             });
@@ -617,57 +644,47 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
                             .child(crate::components::textarea::text_area(value, "Add notes…"))
                             .into_element(),
                     )
-                    .footer(
-                        view()
-                            .w_full()
-                            .flex_row()
-                            .justify_end()
-                            .gap(px(8.0))
-                            .child(crate::ui::action_button("Cancel", false, move || {
-                                modal.close()
-                            }))
-                            .child(crate::ui::action_button("Save", false, move || {
-                                let notes = save_value.get();
-                                let server = save_server.clone();
-                                let token = save_token.clone();
-                                spawn(async move {
-                                    let body = if notes.trim().is_empty() {
-                                        serde_json::json!({ "notes": null })
-                                    } else {
-                                        serde_json::json!({ "notes": notes })
-                                    };
-                                    let result = match save_kind {
-                                        Kind::Subscription | Kind::Budget => {
-                                            api::update_subscription(server, token, save_id, &body)
-                                                .await
-                                                .map(|_| ())
-                                        }
-                                        Kind::Transaction => {
-                                            api::update_transaction(server, token, save_id, &body)
-                                                .await
-                                                .map(|_| ())
-                                        }
-                                        Kind::Debt => {
-                                            api::update_debt(server, token, save_id, &body)
-                                                .await
-                                                .map(|_| ())
-                                        }
-                                    };
-                                    match result {
-                                        Ok(()) => {
-                                            crate::components::toast::success("Notes saved.");
-                                            subscriptions.refetch();
-                                            transactions.refetch();
-                                            debts.refetch();
-                                            ui::bump_data();
-                                        }
-                                        Err(message) => crate::components::toast::error(message),
+                    .footer(crate::ui::dialog_actions(
+                        crate::ui::DialogAction::new("Save", true, move || {
+                            let notes = save_value.get();
+                            let server = save_server.clone();
+                            let token = save_token.clone();
+                            spawn(async move {
+                                let body = if notes.trim().is_empty() {
+                                    serde_json::json!({ "notes": null })
+                                } else {
+                                    serde_json::json!({ "notes": notes })
+                                };
+                                let result = match save_kind {
+                                    Kind::Subscription | Kind::Budget => {
+                                        api::update_subscription(server, token, save_id, &body)
+                                            .await
+                                            .map(|_| ())
                                     }
-                                    modal.close();
-                                });
-                            }))
-                            .into_element(),
-                    ),
+                                    Kind::Transaction => {
+                                        api::update_transaction(server, token, save_id, &body)
+                                            .await
+                                            .map(|_| ())
+                                    }
+                                    Kind::Debt => api::update_debt(server, token, save_id, &body)
+                                        .await
+                                        .map(|_| ()),
+                                };
+                                match result {
+                                    Ok(()) => {
+                                        crate::components::toast::success("Notes saved.");
+                                        subscriptions.refetch();
+                                        transactions.refetch();
+                                        debts.refetch();
+                                        ui::bump_data();
+                                    }
+                                    Err(message) => crate::components::toast::error(message),
+                                }
+                                modal.close();
+                            });
+                        }),
+                        crate::ui::DialogAction::new("Cancel", false, move || modal.close()),
+                    )),
                 )
                 .into_element()
             });
@@ -725,56 +742,46 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
                             )
                             .into_element(),
                     )
-                    .footer(
-                        view()
-                            .w_full()
-                            .flex_row()
-                            .justify_end()
-                            .gap(px(8.0))
-                            .child(crate::ui::action_button("Cancel", false, move || {
-                                modal.close()
-                            }))
-                            .child(crate::ui::action_button("Pay", false, move || {
-                                let Ok(value) = amount.get().trim().parse::<Decimal>() else {
-                                    error.set("Enter a valid amount.".to_string());
-                                    return;
-                                };
-                                let Ok(date) = chrono::NaiveDate::parse_from_str(
-                                    paid_on.get().trim(),
-                                    "%Y-%m-%d",
-                                ) else {
-                                    error.set("Enter a valid date.".to_string());
-                                    return;
-                                };
-                                let note_value =
-                                    (!note.get().trim().is_empty()).then(|| note.get());
-                                let server = save_server.clone();
-                                let token = save_token.clone();
-                                spawn(async move {
-                                    match api::record_debt_payment(
-                                        server,
-                                        token,
-                                        id,
-                                        &crate::debts::RecordDebtPaymentRequest {
-                                            amount: value,
-                                            paid_on: date,
-                                            note: note_value,
-                                        },
-                                    )
-                                    .await
-                                    {
-                                        Ok(_) => {
-                                            crate::components::toast::success("Payment recorded.");
-                                            debts.refetch();
-                                            ui::bump_data();
-                                        }
-                                        Err(message) => crate::components::toast::error(message),
+                    .footer(crate::ui::dialog_actions(
+                        crate::ui::DialogAction::new("Pay", true, move || {
+                            let Ok(value) = amount.get().trim().parse::<Decimal>() else {
+                                error.set("Enter a valid amount.".to_string());
+                                return;
+                            };
+                            let Ok(date) =
+                                chrono::NaiveDate::parse_from_str(paid_on.get().trim(), "%Y-%m-%d")
+                            else {
+                                error.set("Enter a valid date.".to_string());
+                                return;
+                            };
+                            let note_value = (!note.get().trim().is_empty()).then(|| note.get());
+                            let server = save_server.clone();
+                            let token = save_token.clone();
+                            spawn(async move {
+                                match api::record_debt_payment(
+                                    server,
+                                    token,
+                                    id,
+                                    &crate::debts::RecordDebtPaymentRequest {
+                                        amount: value,
+                                        paid_on: date,
+                                        note: note_value,
+                                    },
+                                )
+                                .await
+                                {
+                                    Ok(_) => {
+                                        crate::components::toast::success("Payment recorded.");
+                                        debts.refetch();
+                                        ui::bump_data();
                                     }
-                                    modal.close();
-                                });
-                            }))
-                            .into_element(),
-                    ),
+                                    Err(message) => crate::components::toast::error(message),
+                                }
+                                modal.close();
+                            });
+                        }),
+                        crate::ui::DialogAction::new("Cancel", false, move || modal.close()),
+                    )),
                 )
                 .into_element()
             });
@@ -797,13 +804,19 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
         .child(page_header(
             "Money",
             "Subscriptions, budgets, one-off payments and debts in one place.",
-            view()
-                .child(crate::components::button::button(
-                    crate::components::button::ButtonProps::new("Add")
-                        .icon(asset!("icons/plus.svg"))
-                        .on_press(open_add.clone()),
-                ))
-                .into_element(),
+            when(
+                move || !compact.get(),
+                move || {
+                    crate::components::button::button(
+                        crate::components::button::ButtonProps::new("Add")
+                            .icon(asset!("icons/plus.svg"))
+                            .on_press(open_add.clone()),
+                    )
+                    .into_element()
+                },
+            )
+            .otherwise(|| view().h(px(0.0)).into_element())
+            .into_element(),
             compact,
             false,
             HEADER_ACTION_WIDTH,
@@ -832,29 +845,36 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
                     sort_field,
                     sort_desc,
                     vec![
-                        SortOption::new("date", "Upcoming date"),
+                        SortOption::new("date", "Date"),
                         SortOption::new("name", "Name"),
                         SortOption::new("amount", "Amount"),
                         SortOption::new("updated", "Last modified"),
                     ],
                 ))
                 .child(
-                    view()
-                        .flex_row()
-                        .items_center()
-                        .gap(px(4.0))
-                        .child(crate::components::list_toolbar::view_toggle(
-                            asset!("icons/grid.svg"),
-                            "Grid view",
-                            move || !list_view.get(),
-                            move || list_view.set(false),
-                        ))
-                        .child(crate::components::list_toolbar::view_toggle(
-                            asset!("icons/list.svg"),
-                            "List view",
-                            move || list_view.get(),
-                            move || list_view.set(true),
-                        )),
+                    when(
+                        move || !compact.get(),
+                        move || {
+                            view()
+                                .flex_row()
+                                .items_center()
+                                .gap(px(4.0))
+                                .child(crate::components::list_toolbar::view_toggle(
+                                    asset!("icons/grid.svg"),
+                                    "Grid view",
+                                    move || !list_view.get(),
+                                    move || list_view.set(false),
+                                ))
+                                .child(crate::components::list_toolbar::view_toggle(
+                                    asset!("icons/list.svg"),
+                                    "List view",
+                                    move || list_view.get(),
+                                    move || list_view.set(true),
+                                ))
+                                .into_element()
+                        },
+                    )
+                    .otherwise(|| view().h(px(0.0)).into_element()),
                 ),
         )
         .child(chips(filter, move || {
@@ -1026,63 +1046,122 @@ pub fn money(auth: AuthSession, modal: ui::ModalHost, compact: Signal<bool>) -> 
                         let base_currency = branch_currency.clone();
                         let item_currency = stored(base_currency.clone());
                         let item_rates = stored(base_rates.clone());
-                        when(move || list_view.get(), {
-                            move || {
-                                view()
-                                    .w_full()
-                                    .flex_col()
-                                    .gap(px(8.0))
-                                    .child(each(
-                                        items,
-                                        |item| {
-                                            format!(
-                                                "{}-{}-{}",
-                                                item.kind.label(),
-                                                item.id,
-                                                item.updated
-                                            )
-                                        },
-                                        move |item, _| {
-                                            let currency =
-                                                item_currency.with(|value| value.clone());
-                                            let rates = item_rates.with(|value| value.clone());
-                                            list_row(item.get(), &currency, &rates)
-                                        },
-                                    ))
-                                    .into_element()
-                            }
-                        })
-                        .otherwise(move || {
-                            view()
-                                .w_full()
-                                .grid()
-                                .grid_template_columns(GRID_COLUMNS)
-                                .gap(px(16.0))
-                                .child(each(
-                                    items,
-                                    |item| {
-                                        format!(
-                                            "{}-{}-{}",
-                                            item.kind.label(),
-                                            item.id,
-                                            item.updated
+                        let hanging = items;
+                        let running_currency = item_currency;
+                        let running_rates = item_rates;
+                        view()
+                            .w_full()
+                            .flex_col()
+                            .gap(px(16.0))
+                            .child(entries(
+                                list_view,
+                                move || hanging().into_iter().filter(|item| item.active).collect(),
+                                running_currency,
+                                running_rates,
+                            ))
+                            .child(when(
+                                move || hanging().iter().any(|item| !item.active),
+                                move || {
+                                    view()
+                                        .w_full()
+                                        .flex_col()
+                                        .gap(px(10.0))
+                                        .child(
+                                            view()
+                                                .w_full()
+                                                .flex_row()
+                                                .items_center()
+                                                .justify_between()
+                                                .pt(px(4.0))
+                                                .child(
+                                                    text("Inactive")
+                                                        .text_size(px(10.0))
+                                                        .font_weight(FontWeight::SEMIBOLD)
+                                                        .text_color(move || {
+                                                            theme().muted_foreground
+                                                        }),
+                                                )
+                                                .child(
+                                                    text(move || {
+                                                        format!(
+                                                            "{}",
+                                                            hanging()
+                                                                .iter()
+                                                                .filter(|item| !item.active)
+                                                                .count()
+                                                        )
+                                                    })
+                                                    .text_size(px(10.0))
+                                                    .text_color(move || theme().muted_foreground),
+                                                ),
                                         )
-                                    },
-                                    move |item, _| {
-                                        let currency = item_currency.with(|value| value.clone());
-                                        let rates = item_rates.with(|value| value.clone());
-                                        grid_card(item.get(), &currency, &rates)
-                                    },
-                                ))
-                                .into_element()
-                        })
-                        .into_element()
+                                        .child(entries(
+                                            list_view,
+                                            move || {
+                                                hanging()
+                                                    .into_iter()
+                                                    .filter(|item| !item.active)
+                                                    .collect()
+                                            },
+                                            running_currency,
+                                            running_rates,
+                                        ))
+                                        .into_element()
+                                },
+                            ))
+                            .into_element()
                     })
                     .into_element()
                 })
             }),
         )
         .into_element()
+}
+
+/// The rows or cards of `items`, in the layout the toolbar chose.
+fn entries(
+    list_view: Signal<bool>,
+    items: impl Fn() -> Vec<Item> + Copy + 'static,
+    currency: Stored<String>,
+    rates: Stored<crate::models::Rates>,
+) -> AnyElement {
+    when(
+        move || list_view.get(),
+        move || {
+            view()
+                .w_full()
+                .flex_col()
+                .gap(px(8.0))
+                .child(each(
+                    move || items(),
+                    |item| format!("{}-{}-{}", item.kind.label(), item.id, item.updated),
+                    move |item, _| {
+                        let currency = currency.with(|value| value.clone());
+                        let rates = rates.with(|value| value.clone());
+                        list_row(item.get(), &currency, &rates)
+                    },
+                ))
+                .into_element()
+        },
+    )
+    .otherwise(move || {
+        view()
+            .w_full()
+            .grid()
+            .grid_template_columns(GRID_COLUMNS)
+            .gap(px(16.0))
+            .child(each(
+                move || items(),
+                |item| format!("{}-{}-{}", item.kind.label(), item.id, item.updated),
+                move |item, _| {
+                    let currency = currency.with(|value| value.clone());
+                    let rates = rates.with(|value| value.clone());
+                    grid_card(item.get(), &currency, &rates)
+                },
+            ))
+            .into_element()
+    })
+    .into_element()
 }
 
 fn chips(filter: Signal<Filter>, items: impl Fn() -> Vec<Item> + Copy + 'static) -> AnyElement {
@@ -1108,55 +1187,61 @@ fn chips(filter: Signal<Filter>, items: impl Fn() -> Vec<Item> + Copy + 'static)
             ),
         ]
     };
+    let compact = crate::ui::compact_active();
+    let row = view().flex_row().flex_shrink_0().gap(px(6.0)).child(each(
+        move || counts(),
+        |(value, count)| format!("{}-{}", value.label(), count),
+        move |item, _| {
+            let (value, count) = item.get();
+            let active = move || filter.get() == value;
+            button()
+                .cursor_pointer()
+                .h(px(32.0))
+                .px(px(12.0))
+                .items_center()
+                .justify_center()
+                .rounded(px(999.0))
+                .border(px(1.0))
+                .border_color(move || {
+                    if active() {
+                        theme().primary
+                    } else {
+                        theme().border
+                    }
+                })
+                .bg(move || {
+                    if active() {
+                        theme().primary.opacity(0.12)
+                    } else {
+                        theme().card
+                    }
+                })
+                .on_press(move || filter.set(value))
+                .child(
+                    text(format!("{} · {}", value.label(), count))
+                        .text_size(px(12.0))
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(move || {
+                            if active() {
+                                theme().primary
+                            } else {
+                                theme().muted_foreground
+                            }
+                        }),
+                )
+                .into_element()
+        },
+    ));
+    if compact {
+        // One row the thumb drags, as the settings tabs do.
+        return view()
+            .w_full()
+            .child(scroll().horizontal().w_full().h(px(34.0)).child(row))
+            .into_element();
+    }
     view()
         .w_full()
-        .flex_row()
-        .flex_wrap()
-        .gap(px(6.0))
-        .child(each(
-            move || counts(),
-            |(value, count)| format!("{}-{}", value.label(), count),
-            move |item, _| {
-                let (value, count) = item.get();
-                let active = move || filter.get() == value;
-                button()
-                    .cursor_pointer()
-                    .h(px(32.0))
-                    .px(px(12.0))
-                    .items_center()
-                    .justify_center()
-                    .rounded(px(999.0))
-                    .border(px(1.0))
-                    .border_color(move || {
-                        if active() {
-                            theme().primary
-                        } else {
-                            theme().border
-                        }
-                    })
-                    .bg(move || {
-                        if active() {
-                            theme().primary.opacity(0.12)
-                        } else {
-                            theme().card
-                        }
-                    })
-                    .on_press(move || filter.set(value))
-                    .child(
-                        text(format!("{} · {}", value.label(), count))
-                            .text_size(px(12.0))
-                            .font_weight(FontWeight::MEDIUM)
-                            .text_color(move || {
-                                if active() {
-                                    theme().primary
-                                } else {
-                                    theme().muted_foreground
-                                }
-                            }),
-                    )
-                    .into_element()
-            },
-        ))
+        .child(row.w_full().flex_wrap())
         .into_element()
 }
 
@@ -1222,6 +1307,82 @@ fn tagged_chip(tagged: &Tagged) -> AnyElement {
     .into_element()
 }
 
+/// A subscription still counts while it is active and has not reached its end.
+fn still_running(
+    active: bool,
+    end_date: Option<chrono::NaiveDate>,
+    today: chrono::NaiveDate,
+) -> bool {
+    active && end_date.is_none_or(|end| end >= today)
+}
+
+/// A one-off payment counts for the month it is paid in.
+fn in_current_month(date: chrono::NaiveDate, today: chrono::NaiveDate) -> bool {
+    use chrono::Datelike;
+    date.year() == today.year() && date.month() == today.month()
+}
+
+/// The item a destructive dialog is about: its logo, its name, what it costs
+/// and when it would charge next.
+fn delete_summary(item: &Item, currency: &str, rates: &crate::models::Rates) -> AnyElement {
+    card()
+        .w_full()
+        .p(px(14.0))
+        .gap(px(10.0))
+        .child(
+            view()
+                .w_full()
+                .flex_row()
+                .items_center()
+                .gap(px(12.0))
+                .child(crate::components::logo_avatar::logo_avatar(
+                    item.logo.clone(),
+                    kind_icon(item.kind),
+                    40.0,
+                    false,
+                ))
+                .child(
+                    view()
+                        .flex_col()
+                        .min_w(px(0.0))
+                        .flex_grow(1.0)
+                        .child(
+                            text(item.name.clone())
+                                .number_of_lines(1)
+                                .text_size(px(15.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(move || theme().foreground),
+                        )
+                        .child(
+                            text(item.detail.clone())
+                                .number_of_lines(1)
+                                .text_size(px(11.0))
+                                .text_color(move || theme().muted_foreground),
+                        ),
+                )
+                .child(converted_amount(
+                    item.amount,
+                    &item.currency,
+                    currency,
+                    rates,
+                    15.0,
+                    FontWeight::BOLD,
+                    true,
+                )),
+        )
+        .child(
+            view()
+                .w_full()
+                .flex_row()
+                .items_center()
+                .gap(px(6.0))
+                .child(type_badge(item.kind))
+                .child(tagged_chip(&item.account))
+                .child(tagged_chip(&item.category)),
+        )
+        .into_element()
+}
+
 fn build_items(
     subscriptions: Resource<api::SubscriptionsData, String>,
     transactions: Resource<api::TransactionsData, String>,
@@ -1231,6 +1392,7 @@ fn build_items(
     order: Sort,
 ) -> Vec<Item> {
     let needle = search.trim().to_lowercase();
+    let today = chrono::Local::now().date_naive();
     let mut items = Vec::new();
     // An automatic debt bills through a subscription of its own: the debt card
     // already shows it, so the subscription is not listed twice.
@@ -1268,6 +1430,7 @@ fn build_items(
                 detail,
                 progress: None,
                 date: sub.next_billing_date,
+                active: still_running(sub.is_active, sub.end_date, today),
                 updated: sub.updated_at.map_or(0, |d| d.timestamp_millis()),
             });
         }
@@ -1288,6 +1451,7 @@ fn build_items(
                 detail: format_date(tx.date),
                 progress: None,
                 date: Some(tx.date),
+                active: in_current_month(tx.date, today),
                 updated: tx.updated_at.map_or(0, |d| d.timestamp_millis()),
             });
         }
@@ -1320,6 +1484,7 @@ fn build_items(
                 ),
                 progress: Some(ratio.clamp(0.0, 1.0)),
                 date: debt.next_payment_date,
+                active: debt.is_active,
                 updated: debt.updated_at.map_or(0, |d| d.timestamp_millis()),
             });
         }
@@ -1462,53 +1627,53 @@ fn grid_card(item: Item, currency: &str, rates: &crate::models::Rates) -> AnyEle
                 .flex_wrap()
                 .items_center()
                 .justify_between()
-                .gap(px(8.0))
+                .gap(px(6.0))
+                .child(type_badge(kind))
                 .child(
                     view()
                         .flex_row()
                         .flex_wrap()
                         .items_center()
-                        .flex_grow(1.0)
-                        .min_w(px(0.0))
+                        .justify_end()
                         .gap(px(6.0))
-                        .child(type_badge(kind))
                         .child(tagged_chip(&account))
                         .child(tagged_chip(&category)),
-                )
-                .child(
-                    view()
-                        .flex_row()
-                        .items_center()
-                        .justify_end()
-                        .gap(px(4.0))
-                        .when(kind == Kind::Debt, |row| {
-                            row.child(crate::ui::mini_icon_button(
-                                asset!("icons/card.svg"),
-                                false,
-                                move || money_pay(kind, item_id),
-                            ))
-                        })
-                        .child(crate::ui::mini_icon_button(
-                            asset!("icons/notes.svg"),
-                            false,
-                            move || money_notes(kind, item_id),
-                        ))
-                        .child(crate::ui::mini_icon_button(
-                            asset!("icons/pencil.svg"),
-                            false,
-                            move || money_edit(kind, item_id),
-                        ))
-                        .child(crate::ui::mini_icon_button(
-                            asset!("icons/copy.svg"),
-                            false,
-                            move || money_duplicate(kind, item_id),
-                        ))
-                        .child(crate::ui::mini_icon_button(
-                            asset!("icons/trash.svg"),
-                            true,
-                            move || money_delete(kind, item_id),
-                        )),
                 ),
+        )
+        .child(
+            view()
+                .w_full()
+                .flex_row()
+                .items_center()
+                .justify_end()
+                .gap(px(4.0))
+                .when(kind == Kind::Debt, |row| {
+                    row.child(crate::ui::mini_icon_button(
+                        asset!("icons/card.svg"),
+                        false,
+                        move || money_pay(kind, item_id),
+                    ))
+                })
+                .child(crate::ui::mini_icon_button(
+                    asset!("icons/notes.svg"),
+                    false,
+                    move || money_notes(kind, item_id),
+                ))
+                .child(crate::ui::mini_icon_button(
+                    asset!("icons/pencil.svg"),
+                    false,
+                    move || money_edit(kind, item_id),
+                ))
+                .child(crate::ui::mini_icon_button(
+                    asset!("icons/copy.svg"),
+                    false,
+                    move || money_duplicate(kind, item_id),
+                ))
+                .child(crate::ui::mini_icon_button(
+                    asset!("icons/trash.svg"),
+                    true,
+                    move || money_delete(kind, item_id),
+                )),
         )
         .when_some(progress, |card, value| {
             card.child(
@@ -1692,20 +1857,25 @@ pub fn open_money_add(auth: AuthSession, modal: ui::ModalHost) {
 
 fn add_menu(auth: std::rc::Rc<AuthSession>, modal: ui::ModalHost) -> AnyElement {
     let close = move || modal.close();
-    let open = move |kind: Filter| {
-        modal.close();
-        match kind {
-            Filter::Subscription => crate::ui::create_subscription(None),
-            Filter::Budget => crate::subscriptions::open_create_dialog_kind(
-                (*auth).clone(),
-                modal,
-                None,
-                "budget",
-            ),
-            Filter::Transaction => crate::ui::create_transaction(None),
-            Filter::Debt => crate::ui::create_debt(None),
-            Filter::All => {}
+    let _ = &auth;
+    let open = move |kind: Filter| match kind {
+        Filter::Budget => {
+            modal.close();
+            crate::ui::request_create(crate::ui::Create::Budget);
         }
+        Filter::Subscription => {
+            modal.close();
+            crate::ui::request_create(crate::ui::Create::Subscription);
+        }
+        Filter::Transaction => {
+            modal.close();
+            crate::ui::request_create(crate::ui::Create::Transaction);
+        }
+        Filter::Debt => {
+            modal.close();
+            crate::ui::request_create(crate::ui::Create::Debt);
+        }
+        Filter::All => {}
     };
     let row = |kind: Filter,
                icon: ImageAsset,

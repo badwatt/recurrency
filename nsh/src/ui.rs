@@ -24,6 +24,9 @@ thread_local! {
     static SUBSCRIPTION_INTENT: RefCell<Option<Signal<Option<SubscriptionIntent>>>> = const { RefCell::new(None) };
     static LOGO_MODAL: RefCell<Option<crate::components::dialog::DialogHost>> = const { RefCell::new(None) };
     static MODAL_HOST: RefCell<Option<crate::components::dialog::DialogHost>> = const { RefCell::new(None) };
+    static DIALOG_VERSION: RefCell<Option<Signal<u64>>> = const { RefCell::new(None) };
+    static PENDING_CREATE: std::cell::Cell<Option<Create>> = const { std::cell::Cell::new(None) };
+    static CREATE_TICK: RefCell<Option<Signal<u64>>> = const { RefCell::new(None) };
     static DATA_REVISION: RefCell<Option<Signal<u64>>> = const { RefCell::new(None) };
 }
 thread_local! {
@@ -406,6 +409,57 @@ pub fn init_route(route: Signal<Route>) {
     });
 }
 
+/// A form to open once the current dialog has closed: its state belongs to
+/// the shell, not to the dialog that asked for it.
+#[derive(Clone, Copy)]
+pub enum Create {
+    Subscription,
+    Budget,
+    Transaction,
+    Debt,
+}
+
+/// Ticked every time a form is asked for, so the shell's effect sees it.
+pub fn create_tick() -> Signal<u64> {
+    CREATE_TICK.with(|slot| {
+        if let Some(tick) = *slot.borrow()
+            && tick.try_get().is_some()
+        {
+            return tick;
+        }
+        let tick = signal(0);
+        *slot.borrow_mut() = Some(tick);
+        tick
+    })
+}
+
+pub fn request_create(kind: Create) {
+    PENDING_CREATE.with(|slot| slot.set(Some(kind)));
+    let tick = create_tick();
+    if let Some(value) = tick.try_get() {
+        let _ = tick.try_set(value.wrapping_add(1));
+    }
+}
+
+pub fn take_create() -> Option<Create> {
+    PENDING_CREATE.with(std::cell::Cell::take)
+}
+
+/// The signal a dialog re-renders on: made once, at the app root, so it
+/// outlives every shell render.
+pub fn dialog_version() -> Signal<u64> {
+    DIALOG_VERSION.with(|slot| {
+        if let Some(version) = *slot.borrow()
+            && version.try_get().is_some()
+        {
+            return version;
+        }
+        let version = signal(0);
+        *slot.borrow_mut() = Some(version);
+        version
+    })
+}
+
 /// Remembers the shell's dialog host so a route change can close it.
 pub fn init_modal_host(host: crate::components::dialog::DialogHost) {
     MODAL_HOST.with(|slot| *slot.borrow_mut() = Some(host));
@@ -497,14 +551,39 @@ fn toggle_privacy() {
     bump_data();
 }
 
-pub fn init_compact(compact: Signal<bool>) {
+/// Below this width the shell lays out for phones and tablets.
+pub const COMPACT_BELOW: f32 = 900.0;
+
+/// The shell's compact flag, made once: a re-render must not start it over at
+/// `false`, or anything opened before the next layout (a dialog, a menu) would
+/// take itself for a wide screen.
+pub fn compact_signal() -> Signal<bool> {
     COMPACT.with(|slot| {
+        if let Some(compact) = *slot.borrow()
+            && compact.try_get().is_some()
+        {
+            return compact;
+        }
+        // Seeded from the surface, so the first render already knows: a cold
+        // load into a phone must not draw the wide layout first.
+        let compact = signal(window().width.0 < COMPACT_BELOW);
         *slot.borrow_mut() = Some(compact);
-    });
+        compact
+    })
+}
+
+/// Points the app-wide lookup at the shell that is rendering. Called on every
+/// shell render: a rebuilt shell registers the signal its tree actually reads.
+pub fn init_compact(compact: Signal<bool>) {
+    COMPACT.with(|slot| *slot.borrow_mut() = Some(compact));
 }
 
 pub fn compact_active() -> bool {
-    COMPACT.with(|slot| slot.borrow().map_or(false, |compact| compact.get()))
+    COMPACT.with(|slot| {
+        slot.borrow()
+            .and_then(|compact| compact.try_get())
+            .unwrap_or(false)
+    })
 }
 
 pub fn top_bar(route: Signal<Route>, auth: AuthSession, compact: Signal<bool>) -> impl IntoElement {
@@ -1007,6 +1086,114 @@ pub fn editable_choice_picker(
         }),
     )
 }
+/// One button of a dialog footer.
+pub struct DialogAction {
+    label: String,
+    variant: crate::components::button::ButtonVariant,
+    on_press: std::rc::Rc<dyn Fn()>,
+}
+
+impl DialogAction {
+    pub fn new(label: impl Into<String>, primary: bool, on_press: impl Fn() + 'static) -> Self {
+        Self {
+            label: label.into(),
+            variant: if primary {
+                crate::components::button::ButtonVariant::Primary
+            } else {
+                crate::components::button::ButtonVariant::Outline
+            },
+            on_press: std::rc::Rc::new(on_press),
+        }
+    }
+
+    /// A button that destroys something: it wears the destructive colour.
+    pub fn destructive(label: impl Into<String>, on_press: impl Fn() + 'static) -> Self {
+        Self {
+            label: label.into(),
+            variant: crate::components::button::ButtonVariant::Destructive,
+            on_press: std::rc::Rc::new(on_press),
+        }
+    }
+
+    fn build(&self) -> AnyElement {
+        let props = crate::components::button::ButtonProps::new(self.label.clone())
+            .variant(self.variant)
+            .size(crate::components::button::ButtonSize::Sm);
+        let props = if compact_active() {
+            props.full_width()
+        } else {
+            props
+        };
+        let on_press = self.on_press.clone();
+        crate::components::button::button(props.on_press(move || on_press())).into_element()
+    }
+}
+
+/// A dialog's footer for buttons that carry their own reactive label: on a
+/// phone the action goes on top and both take the width, on a wide screen
+/// they sit at the end of the row.
+pub fn footer_layout(secondary: AnyElement, primary: AnyElement) -> AnyElement {
+    let footer = view().w_full().gap(px(8.0));
+    if compact_active() {
+        footer
+            .flex_col()
+            .child(primary)
+            .child(secondary)
+            .into_element()
+    } else {
+        footer
+            .flex_row()
+            .justify_end()
+            .child(secondary)
+            .child(primary)
+            .into_element()
+    }
+}
+
+/// The footer every dialog shares: `primary` is the action that confirms
+/// (Save, Delete, Pay), `secondary` backs out of it. On a phone they stack,
+/// the action on top and both across the dialog; on a wide screen they sit
+/// side by side at the end of the row.
+pub fn dialog_actions(primary: DialogAction, secondary: DialogAction) -> AnyElement {
+    let footer = view().w_full().gap(px(8.0));
+    if compact_active() {
+        footer
+            .flex_col()
+            .child(primary.build())
+            .child(secondary.build())
+            .into_element()
+    } else {
+        footer
+            .flex_row()
+            .justify_end()
+            .child(secondary.build())
+            .child(primary.build())
+            .into_element()
+    }
+}
+
+/// A dialog's footer: on a phone the buttons stack, the primary one on top
+/// and both across the dialog; on a wide screen they sit side by side at the
+/// end of the row.
+pub fn dialog_footer(secondary: AnyElement, primary: AnyElement) -> AnyElement {
+    let footer = view().w_full().gap(px(8.0));
+    if compact_active() {
+        // The primary action sits on top, right where the thumb lands.
+        footer
+            .flex_col()
+            .child(primary)
+            .child(secondary)
+            .into_element()
+    } else {
+        footer
+            .flex_row()
+            .justify_end()
+            .child(secondary)
+            .child(primary)
+            .into_element()
+    }
+}
+
 pub fn action_button(
     label: impl Into<String>,
     destructive: bool,

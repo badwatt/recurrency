@@ -14,6 +14,11 @@ pub fn parse_hex(value: &str) -> u32 {
     u32::from_str_radix(value.trim_start_matches('#'), 16).unwrap_or(0x6b7280)
 }
 
+/// Text drawn over a destructive fill: dark, as the rest of the app does.
+pub fn on_destructive() -> nsh_core::element::AdaptiveColor {
+    nsh_core::element::AdaptiveColor::from(nsh_core::color::rgba(0x1c1c1eff))
+}
+
 /// Success badges (active states) use the `success` token when the theme
 /// defines it; the primary color is the fallback.
 pub fn success() -> nsh_core::element::AdaptiveColor {
