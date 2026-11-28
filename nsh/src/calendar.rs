@@ -143,12 +143,29 @@ fn navigation(
             },
         ))
         .child(
-            text(move || month_label(year.get(), month.get()))
+            // The label opens the month and year, so a far date is two taps
+            // away instead of a run of arrows.
+            view()
+                .cursor_pointer()
                 .w(px(if compact { 120.0 } else { 200.0 }))
-                .text_size(px(if compact { 16.0 } else { 20.0 }))
-                .line_height(px(28.0))
-                .font_weight(FontWeight::SEMIBOLD)
-                .text_color(move || theme().foreground),
+                .on_press(move |event: &PressEvent| {
+                    let page = event.page_position;
+                    let local = event.position;
+                    crate::ui::open_menu(
+                        crate::ui::MenuPlacement::At {
+                            top: page.y.0 - local.y.0 + 42.0,
+                            left: (page.x.0 - local.x.0).max(8.0),
+                        },
+                        move || month_picker(year, month, today),
+                    );
+                })
+                .child(
+                    text(move || month_label(year.get(), month.get()))
+                        .text_size(px(if compact { 16.0 } else { 20.0 }))
+                        .line_height(px(28.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(move || theme().foreground),
+                ),
         )
         .child(nav_arrow(
             asset!("icons/chevron-right.svg"),
@@ -168,32 +185,141 @@ fn navigation(
         .border_b(px(if compact { 0.0 } else { 1.0 }))
         .border_color(move || theme().border)
         .child(group)
+        .child({
+            button()
+                .cursor_pointer()
+                .items_center()
+                .justify_center()
+                .h(px(36.0))
+                .px(px(12.0))
+                .rounded(px(8.0))
+                .border(px(1.0))
+                .border_color(move || theme().border)
+                .bg(move || theme().background)
+                .on_press(move || {
+                    year.set(today.year());
+                    month.set(today.month());
+                })
+                .child(
+                    text("Today")
+                        .text_size(px(12.0))
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(move || theme().foreground),
+                )
+                .into_element()
+        })
+}
+
+/// Year and month chooser: the header's label opens it.
+fn month_picker(year: Signal<i32>, month: Signal<u32>, today: NaiveDate) -> AnyElement {
+    let year_for_grid = year;
+    crate::components::card::card()
+        .w(px(268.0))
+        .p(px(8.0))
+        .gap(px(8.0))
         .child(
-            when(!compact, move || {
-                button()
-                    .cursor_pointer()
-                    .items_center()
-                    .justify_center()
-                    .h(px(36.0))
-                    .px(px(12.0))
-                    .rounded(px(8.0))
-                    .border(px(1.0))
-                    .border_color(move || theme().border)
-                    .bg(move || theme().background)
-                    .on_press(move || {
-                        year.set(today.year());
-                        month.set(today.month());
-                    })
-                    .child(
-                        text("Today")
-                            .text_size(px(12.0))
-                            .font_weight(FontWeight::MEDIUM)
-                            .text_color(move || theme().foreground),
-                    )
-                    .into_element()
-            })
-            .otherwise(|| view().h(px(0.0)).into_element()),
+            view()
+                .w_full()
+                .flex_row()
+                .items_center()
+                .justify_between()
+                .child(nav_arrow(
+                    asset!("icons/chevron-left.svg"),
+                    "Previous year",
+                    move || year.set(year.get() - 1),
+                ))
+                .child(
+                    text(move || year.get().to_string())
+                        .text_size(px(15.0))
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(move || theme().foreground),
+                )
+                .child(nav_arrow(
+                    asset!("icons/chevron-right.svg"),
+                    "Next year",
+                    move || year.set(year.get() + 1),
+                )),
         )
+        .child(
+            view()
+                .w_full()
+                .grid()
+                .grid_template_columns(SharedString::from("repeat(3, minmax(0, 1fr))"))
+                .gap(px(4.0))
+                .children((1..=12u32).map(|value| {
+                    let active = move || month.get() == value;
+                    button()
+                        .cursor_pointer()
+                        .h(px(34.0))
+                        .items_center()
+                        .justify_center()
+                        .rounded(px(6.0))
+                        .bg(move || {
+                            if active() {
+                                theme().primary
+                            } else {
+                                theme().muted.opacity(0.3)
+                            }
+                        })
+                        .on_press(move || {
+                            month.set(value);
+                            crate::ui::close_menu();
+                        })
+                        .child(
+                            text(month_short(value))
+                                .text_size(px(12.0))
+                                .font_weight(FontWeight::MEDIUM)
+                                .text_color(move || {
+                                    if active() {
+                                        theme().primary_foreground
+                                    } else {
+                                        theme().foreground
+                                    }
+                                }),
+                        )
+                })),
+        )
+        .child(
+            button()
+                .cursor_pointer()
+                .w_full()
+                .h(px(34.0))
+                .items_center()
+                .justify_center()
+                .rounded(px(6.0))
+                .border(px(1.0))
+                .border_color(move || theme().border)
+                .on_press(move || {
+                    year_for_grid.set(today.year());
+                    month.set(today.month());
+                    crate::ui::close_menu();
+                })
+                .child(
+                    text("This month")
+                        .text_size(px(12.0))
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(move || theme().foreground),
+                ),
+        )
+        .into_element()
+}
+
+/// Three letters for the month picker.
+fn month_short(month: u32) -> &'static str {
+    match month {
+        1 => "Jan",
+        2 => "Feb",
+        3 => "Mar",
+        4 => "Apr",
+        5 => "May",
+        6 => "Jun",
+        7 => "Jul",
+        8 => "Aug",
+        9 => "Sep",
+        10 => "Oct",
+        11 => "Nov",
+        _ => "Dec",
+    }
 }
 
 fn content(
